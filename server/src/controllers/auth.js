@@ -1,14 +1,11 @@
 import bcrypt from "bcrypt"
 import pool from "../config/db.js";
 import generateToken from "../lib/jwt.js";
-import {verify} from "../middleware/jwt_check.js";
+import { verify } from "../middleware/jwt_check.js";
 const saltround = 10
-const getUser = async(req,res) => {
+const getUser = async (req, res) => {
     try {
-        console.log("hello my friend");
-        const data = await verify(req,res);
-        console.log(data)
-        return res.status(200).json({ message: "Authorized!1",data:data});
+        return res.status(200).json({ message: "Authorized!1", data: req.user });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal Server Error !!" });
@@ -35,15 +32,15 @@ const createUser = async (req, res) => {
             "INSERT INTO users (name, email, pass) VALUES ($1, $2, $3)",
             [name, email, hashpass]
         );
-        const cookie = generateToken(new_user.rows[0].id,res);
+        const cookie = generateToken(new_user.rows[0].id, res);
         console.log(cookie);
-        return res.status(201).json({ message: "User created successfully",data:match.rows[0]});
+        return res.status(201).json({ message: "User created successfully", data: match.rows[0] });
     } catch (error) {
         console.log("Error: " + error.message);
         return res.status(500).json({ message: "Internal Server Error !!" });
     }
 };
-const logUser = async(req,res)=>{
+const logUser = async (req, res) => {
     try {
         console.log(req.body)
         const { email, pass } = req.body;
@@ -58,20 +55,44 @@ const logUser = async(req,res)=>{
         if (match.rows.length === 0) {
             return res.status(400).json({ message: "User not found!!" });
         }
-        const match_pass = await bcrypt.compare(pass , match.rows[0].pass );
+        const match_pass = await bcrypt.compare(pass, match.rows[0].pass);
         console.log(match_pass)
-        if(!match_pass){
-            return res.status(401).json({message:"Invalid credentials !!"});
+        if (!match_pass) {
+            return res.status(401).json({ message: "Invalid credentials !!" });
         }
-        generateToken(match.rows[0].id,res);
-        return res.status(200).json({message:"Logged in Successfully",data:match.rows});
+        generateToken(match.rows[0].id, res);
+        return res.status(200).json({ message: "Logged in Successfully", data: match.rows });
     } catch (error) {
         console.log(error.message);
-        return res.status(500).json({message:"Internal server error"});
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
+const getAllUser = async (req, res) => {
+    try {
+        const id = req.user.id;
+        const result = await pool.query("select * from users where not id=$1", [id]);
+        console.log(result.rows);
+        return res.status(200).json({ message: "Logged in Successfully", data: result });
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+const logout = async (req,res) => {
+    try {
+        res.cookie("jwt", "", { maxAge: 0 })
+        res.status(200).json({message:"Logout successfully!!"});
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 export {
     getUser,
     createUser,
-    logUser
+    logUser,
+    getAllUser,
+    logout
 }

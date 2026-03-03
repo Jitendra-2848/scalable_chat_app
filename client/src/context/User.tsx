@@ -12,6 +12,7 @@ export const UserInfo = createContext<userInfoInterface | null>(null);
 export const UserInfoProvider = ({ children }: userInfoInterfaceProvider) => {
     const [userdetail, setuserdetail] = useState({ name: "", email: "", id:0 })
     const [auth, setAuth] = useState(false);
+    const navigate = useNavigate()
     const getuser = async()=>{
         try {
             const result = await api.get("/auth/get");
@@ -44,8 +45,18 @@ export const UserInfoProvider = ({ children }: userInfoInterfaceProvider) => {
             setAuth(true);
         }
     }
+    const logout = async()=>{
+        try {
+            const result = await api.get("/auth/logout");
+            console.log(result.data.message)
+            setAuth(false)
+            navigate("/log")
+        } catch (error) {
+            console.log(error)
+        }
+    }
     return (
-        <UserInfo.Provider value={{ login, userdetail, auth,Register,getuser }}>
+        <UserInfo.Provider value={{ login, userdetail, auth,Register,getuser,logout }}>
             {children}
         </UserInfo.Provider>
     )

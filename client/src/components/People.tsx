@@ -4,8 +4,8 @@ import { useChat } from '../hooks/useChat';
 import { User } from '../types';
 
 const People: React.FC = () => {
-  const { filteredUsers, selectUser, selectedUser, searchQuery, setSearchQuery } = useChat();
-
+  const { filteredUsers, selectUser,getAllUser, selectedUser, searchQuery, setSearchQuery } = useChat();
+  console.log(selectedUser);
   return (
     <div className="max-w-[40%] min-w-[300px] h-screen flex flex-col overflow-hidden border-r border-gray-200">
       

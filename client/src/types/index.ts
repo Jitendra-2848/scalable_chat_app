@@ -22,6 +22,7 @@ export interface ChatContextType {
   messages: Message[];
   sendMessage: (msg: string) => void;
   users: User[];
+  getAllUser: ()=> void,
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filteredUsers: User[];
@@ -55,4 +56,5 @@ export interface userInfoInterface {
         email: string,
     },
     auth: boolean;
+    logout : () => void;
 }

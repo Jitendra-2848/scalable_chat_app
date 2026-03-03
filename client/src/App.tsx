@@ -5,13 +5,15 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import { useUser } from './hooks/useUser';
 import Register from './pages/Register';
+import { useChat } from './hooks/useChat';
 
 const App: React.FC = () => {
   const { userdetail,auth,getuser } = useUser();
-
+  const {getAllUser} = useChat(); 
   // ✅ derive auth directly
   useEffect(()=>{
     getuser()
+    getAllUser();
   },[])
 
   return (

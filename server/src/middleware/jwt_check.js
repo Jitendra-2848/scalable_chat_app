@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 
-const verify = async (req, res) => {
+const verify = async (req, res,next) => {
     try {
         const Token = req.cookies.jwt;
         if (!Token) {
@@ -11,7 +11,8 @@ const verify = async (req, res) => {
         console.log(decoded_jwt.userId);
         const user_data = await pool.query("select id,name,email from users where id=$1", [decoded_jwt.userId]);
         console.log(user_data.rows[0]);
-        return user_data.rows[0]
+        req.user = user_data.rows[0]
+        next();
     } catch (error) {
         console.log(error.message);
         return res.status(500).json({ message: "internal server error!!" });
