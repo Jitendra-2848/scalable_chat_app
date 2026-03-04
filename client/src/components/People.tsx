@@ -1,16 +1,23 @@
-import { SearchIcon } from 'lucide-react';
+import { Plus, SearchIcon } from 'lucide-react';
 import React from 'react';
 import { useChat } from '../hooks/useChat';
 import { User } from '../types';
 
-const People: React.FC = () => {
-  const { filteredUsers, selectUser,getAllUser, selectedUser, searchQuery, setSearchQuery } = useChat();
+interface PeopleProps {
+  onAddClick: () => void;
+}
+
+const People: React.FC<PeopleProps> = ({onAddClick}) => {
+  const { filteredUsers, selectUser,getAllUser,users, selectedUser, searchQuery, setSearchQuery } = useChat();
   console.log(selectedUser);
+  console.log(users);
   return (
-    <div className="max-w-[40%] min-w-[300px] h-screen flex flex-col overflow-hidden border-r border-gray-200">
-      
+    <div className="sm:max-w-[25%] w-full h-screen flex flex-col overflow-hidden border-r border-gray-200">
       <div className="p-2 bg-orange-300 flex-none">
+        <div className='flex justify-between items-center'>
         <h1 className="font-extrabold text-3xl tracking-tighter text-white">Chat kare!!</h1>
+        <button onClick={()=>{onAddClick()}} title='Add people' className='target:text-black px-2 hover:bg-gray-400 py-2 hover:bg-opacity-30 rounded-full'><Plus color='white' size={20}/></button>
+        </div>
         <p className="text-xs p-1 text-orange-900 opacity-80">
           Lorem ipsum dolor sit amet consectetur adipisicing elit. Nostrum, eos.
         </p>
@@ -36,7 +43,7 @@ const People: React.FC = () => {
               key={idx}
               onClick={() => selectUser(user)}
               className={`hover:bg-gray-200 cursor-pointer duration-200 transition-all py-4 px-3 flex justify-between border-b border-gray-200 ${
-                selectedUser?.user_id === user.user_id ? 'bg-gray-300' : 'bg-gray-50'
+                selectedUser?.id === user.id ? 'bg-gray-300' : 'bg-gray-50'
               }`}
             >
               <div className="flex items-center min-w-0">

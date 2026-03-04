@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useChat } from '../hooks/useChat';
 
 interface chat_para {
-  user_id: string,
+  id: string,
   isonline: string,
 }
 
@@ -14,11 +14,19 @@ interface Chat_interface {
   sendedbyme: boolean,
 }
 
+// interface ChatProps {
+//   isonline?: boolean;
+//   id: string;
+//   detail: any;
+// }
 interface ChatProps {
-  isonline?: boolean;
-  user_id: string;
-  detail: any;
+  User:{
+    id:number,
+    name:string,
+    email:string,
+  } | {};
 }
+
 const data = [
   {
     message: "hello",
@@ -42,7 +50,9 @@ const data = [
   },
 ]
 
-const Chat: React.FC = () => {
+
+
+const Chat: React.FC<ChatProps> = ({User}) => {
   const { selectedUser, messages, sendMessage } = useChat();
   const [msg, setMsg] = useState('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -53,6 +63,7 @@ const Chat: React.FC = () => {
 
   const handleMessageSend = () => {
     if (!msg.trim()) return;
+    console.log(msg)
     sendMessage(msg);
     setMsg('');
   };
@@ -75,14 +86,14 @@ const Chat: React.FC = () => {
         <div className="bg-yellow-200 flex justify-between items-center p-1">
           <div className="flex justify-center items-center">
             <img
-              src={selectedUser.avatar}
+              src={selectedUser?.avatar}
               className="h-12 aspect-[1] rounded-full"
               alt=""
             />
             <div className="flex flex-col px-3">
               <h1 className="font-semibold leading-tight text-2xl">{selectedUser.name}</h1>
               <h1 className="font-normal text-sm px-1">
-                {selectedUser.isonline ? 'Online' : 'Offline'}
+                {selectedUser?.isonline ? 'Online' : 'Offline'}
               </h1>
             </div>
           </div>

@@ -1,5 +1,6 @@
 
 
+import pool from "../config/db.js";
 import {
   getAllMessage,
   createMessage,
@@ -9,21 +10,43 @@ import {
 } from "../models/userModel.js";
 
 
-const sendmessage = async(req,res)=>{
-    try {
-        res.status(200).json({message:"hello from me server >.... 💀💀"});
-    } catch (error) {
-        console.log(error)
+export const sendmessage = async (req, res) => {
+  try {
+    console.log(req.body);
+    const exist = await pool.query(
+      `
+      SELECT * FROM messages
+      WHERE 
+      (sender_id = $1 AND receiver_id = $2)
+      OR
+      (sender_id = $2 AND receiver_id = $1)
+      `,
+      [req.user.id, req.body.id]
+    );
+    console.log(exist.rowCount);
+    if (exist.rowCount === 0) {
+      await pool.query(
+      `
+      INSERT INTO messages
+      (sender_id, receiver_id, content,seen, send_status, deleted, created_at)
+      VALUES ($1, $2, $3,false,'sent', false, NOW())
+      `,
+        [req.user.id, req.body.id, req.body.message]
+      );
     }
+    return res.status(200).json({ message: "hello from me server >.... 💀💀" });
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 
-const getmessage = async(req,res)=>{
-    try {
-        res.status(200).json({message:"hello from me server >.... 💀💀"});
-    } catch (error) {
-        console.log(error)
-    }
+const getmessage = async (req, res) => {
+  try {
+    res.status(200).json({ message: "hello from me server >.... 💀💀" });
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 

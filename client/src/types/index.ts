@@ -1,19 +1,21 @@
 import { Socket } from "socket.io-client";
 
 export interface User {
-  user_id: string;
+  id: number;
   name: string;
-  avatar: string;
-  isonline: boolean;
+  avatar?: string;
+  isonline?: boolean;
   lastMessage?: string;
   lastSeen?: string;
 }
 
 export interface Message {
+  id:number,
   message: string;
   time: Date;
   read: boolean;
   sendedbyme: boolean;
+  exist:boolean,
 }
 
 export interface ChatContextType {
@@ -57,4 +59,14 @@ export interface userInfoInterface {
     },
     auth: boolean;
     logout : () => void;
+    userSearch : (search:any) => void;
+    
+
+}
+
+export interface user_info{
+  id:number,
+  email:string,
+  name:string,
+  pass?:string,
 }

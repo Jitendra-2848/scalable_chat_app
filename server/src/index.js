@@ -9,6 +9,7 @@ import { Server } from "socket.io"
 import Auth_API from "./routes/auth.js";
 import cors from "cors"
 import cookie_parser from "cookie-parser"
+import User_API from "./routes/User.js";
 const app = express(); 
 const server = http.createServer(app);
 app.use(express.json())
@@ -19,6 +20,8 @@ app.use(cors({
 }))
 app.use("/message",MESSAGE_API);
 app.use("/auth",Auth_API);
+app.use("/user",User_API);
+
 app.get("/",async(req,res)=>{
     // res.write("Hello from server");
     // res.end();

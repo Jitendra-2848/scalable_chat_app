@@ -1,6 +1,7 @@
 import { createContext, useRef, useEffect, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 import { Message } from "../types";
+import { api } from "../utils/axios";
 
 // Types
 interface ChildrenInterface {
@@ -35,8 +36,10 @@ export const SocketProvider = ({ children }: ChildrenInterface) => {
   }, []);
 
   // Emit function
-  const sendMsg = (msg: Message) => {
+  const sendMsg = async(msg: Message) => {
     socketRef.current?.emit("message", msg);
+    const result = await api.post(`/message/${msg.id}`,msg);
+    console.log(result.data);
   };
 
   return (
