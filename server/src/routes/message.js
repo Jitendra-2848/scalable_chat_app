@@ -7,7 +7,7 @@ const MESSAGE_API = express.Router();
 
 // MESSAGE_API.get("/",sendmessage);
 // MESSAGE_API.post("/get_msg",getmessage);
-MESSAGE_API.get("/", getMyUser);
+MESSAGE_API.get("/", getUsers);
 MESSAGE_API.post("/:id",verify, sendmessage);
 MESSAGE_API.get("/:id", getUserById);
 MESSAGE_API.put("/:id", updateUser);

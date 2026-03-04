@@ -27,8 +27,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   // ✅ Fetch all users
   const getAllUser = useCallback(async () => {
     try {
-      const result = await api.get("/auth/getAllUser");
-      // setUser(result.data.data.rows); 
+      const result = await api.get("/user/");
+      setUser(result.data.data); 
+      // console.log()
     } catch (error) {
       console.log(error);
     }

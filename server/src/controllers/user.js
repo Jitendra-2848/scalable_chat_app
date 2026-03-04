@@ -23,8 +23,9 @@ const getMyUser = async (req, res) => {
       OR
       (receiver_id = $1)
       `,
-            [req.user.id]
+        [req.user.id]
         );
+        console.log(users.rows);
         return res.status(200).json({message:"Your user find",data:users.rows});
     } catch (error) {
         console.log(error);
