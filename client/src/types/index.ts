@@ -32,6 +32,7 @@ export interface ChatContextType {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filteredUsers: User[];
+  addMessageFromSocket: (msg: Message) => void;
 }
 
 // Converts user_id or id to unified id - single entry point for all user formats
@@ -57,6 +58,7 @@ export const normalizeUser = (rawUser: any): User => {
 export interface socketconInterface {
   socket: Socket | null;
   sendmsg: (msg: Message) => void;
+  joining: (id:number) => void;
 }
 
 export interface childrenInterface {

@@ -3,36 +3,47 @@ import React, {
   useState,
   useMemo,
   useCallback,
-  useContext,
   useEffect,
 } from "react";
-
 import { ChatContextType, User, Message, normalizeUser } from "../types/index";
-import { SocketContext } from "./socket";
 import { api } from "../utils/axios";
+import { useUser } from "../hooks/useUser";
+import { useSocket } from "../hooks/useSocket";
 
 export const ChatContext = createContext<ChatContextType | null>(null);
 
-export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messagesMap, setMessagesMap] = useState<Record<number, Message[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [users, setUser] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const { userdetail } = useUser();
+  const { sendMsg, socket } = useSocket();
 
-  const { sendMsg } = useContext(SocketContext)!;
-
-  // Normalize all users on initial load
+  // Fetch all users 
   const getAllUser = useCallback(async () => {
     try {
       const result = await api.get("/user/");
-      const normalizedUsers = (result.data.data || []).map((u: any) => normalizeUser(u));
-      setUser(normalizedUsers);
+      const normalizedUsers = (result.data.data || []).map((u: any) =>
+        normalizeUser(u)
+      );
+      setUsers(normalizedUsers);
     } catch (err) {
       console.error("Error fetching users:", err);
     }
   }, []);
 
-  // Single function handles all user sources - normalization prevents confusion
+  //  Add user if not in list 
+  const addUserIfNotExists = useCallback((user: User) => {
+    setUsers((prev) => {
+      const exists = prev.some((u) => u.id === user.id);
+      return exists ? prev : [...prev, user];
+    });
+  }, []);
+
+  // Select a user and load messages 
   const selectUser = useCallback(
     async (rawUser: any) => {
       try {
@@ -44,7 +55,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Backend finds/creates conversation if not found
         const result = await api.post("/message/getmsg", {
           conversation_id: user.conversation_id ?? null,
           user_id: user.id,
@@ -57,7 +67,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const userWithConv: User = {
           ...user,
-          conversation_id: result.data.conversation_id || user.conversation_id,
+          conversation_id:
+            result.data.conversation_id || user.conversation_id,
         };
 
         setSelectedUser(userWithConv);
@@ -66,35 +77,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Error selecting user:", err);
       }
     },
-    [messagesMap]
+    [messagesMap, addUserIfNotExists]
   );
 
-  // Prevent duplicates by checking unified id
-  const addUserIfNotExists = useCallback((user: User) => {
-    setUser((prev) => {
-      const exists = prev.some((u) => u.id === user.id);
-      return exists ? prev : [...prev, user];
-    });
-  }, []);
-
+  //  Derived messages for selected user 
   const messages = useMemo(() => {
     if (!selectedUser) return [];
     return messagesMap[selectedUser.id] || [];
   }, [selectedUser, messagesMap]);
 
-  // Include all required Message fields
+  // Send a message 
   const sendMessage = useCallback(
     (msg: string) => {
-      if (!selectedUser || !msg.trim()) return;
+      if (!selectedUser || !msg.trim() || !userdetail) return;
+
       const newMsg: Message = {
         id: selectedUser.id,
         message: msg,
         created_at: new Date(),
         read: false,
+        sender_id: userdetail.id,
         sendedbyme: true,
         exist: true,
         conversation_id: selectedUser.conversation_id,
       };
+
       setMessagesMap((prev) => ({
         ...prev,
         [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
@@ -102,9 +109,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       sendMsg(newMsg);
     },
-    [selectedUser, sendMsg]
+    [selectedUser, sendMsg, userdetail] 
   );
 
+  const addMessageFromSocket = useCallback((msg: Message) => {
+    setMessagesMap((prev) => ({
+      ...prev,
+      [msg.sender_id]: [...(prev[msg.sender_id] || []), msg],
+    }));
+  }, []); 
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessage = (msg: Message) => {
+      console.log("Received message from socket:", msg);
+      addMessageFromSocket(msg);
+    };
+
+    socket.on("onMessage", handleMessage);
+    return () => {
+      socket.off("onMessage", handleMessage);
+    };
+  }, [socket, addMessageFromSocket]);
+
+  // ─── Filtered users for search ───
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
     return users.filter((u) =>
@@ -112,21 +141,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }, [users, searchQuery]);
 
-  const value = {
-    selectedUser,
-    selectUser,
-    messages,
-    sendMessage,
-    users,
-    searchQuery,
-    setSearchQuery,
-    filteredUsers,
-    getAllUser,
-  };
-
   useEffect(() => {
     getAllUser();
   }, [getAllUser]);
+
+  const value = useMemo(
+    () => ({
+      selectedUser,
+      selectUser,
+      messages,
+      sendMessage,
+      users,
+      searchQuery,
+      setSearchQuery,
+      filteredUsers,
+      getAllUser,
+      addMessageFromSocket,
+    }),
+    [
+      selectedUser,
+      selectUser,
+      messages,
+      sendMessage,
+      users,
+      searchQuery,
+      filteredUsers,
+      getAllUser,
+      addMessageFromSocket,
+    ]
+  );
 
   return (
     <ChatContext.Provider value={value}>{children}</ChatContext.Provider>

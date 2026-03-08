@@ -5,7 +5,7 @@ import { MessageProvider } from "./context/message"
 import { ChatProvider } from './context/ChatContext.tsx'
 import { SocketProvider } from './context/socket.tsx'
 import { BrowserRouter } from 'react-router-dom'
-import {UserInfoProvider} from './context/User.tsx'
+import { UserInfoProvider } from './context/User.tsx'
 
 
 createRoot(document.getElementById('root')!).render(
@@ -13,11 +13,11 @@ createRoot(document.getElementById('root')!).render(
     <UserInfoProvider>
       <MessageProvider>
         <SocketProvider>
-          <ChatProvider>
+          <ChatProvider>``
             <App />
           </ChatProvider>
         </SocketProvider>
-      </MessageProvider >
+      </MessageProvider>
     </UserInfoProvider>
   </BrowserRouter>
 )

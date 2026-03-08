@@ -1,49 +1,63 @@
-import { createContext, useRef, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { io, Socket } from "socket.io-client";
 import { Message } from "../types";
 import { api } from "../utils/axios";
 
-// Types
-interface ChildrenInterface {
-  children: ReactNode;
-}
-
 interface SocketContextInterface {
   socket: Socket | null;
-  sendMsg: (msg: Message) => void; // or your custom type
+  sendMsg: (msg: Message) => Promise<void>;
+  joining: (id: number) => void;
 }
 
-// Context
-export const SocketContext = createContext<SocketContextInterface | undefined>(undefined);
+export const SocketContext = createContext<SocketContextInterface | null>(null);
 
-// Provider
-export const SocketProvider = ({ children }: ChildrenInterface) => {
-  const socketRef = useRef<Socket | null>(null);
+export const SocketProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    // Initialize socket once
-    socketRef.current = io("http://localhost:8000");
-
-    // Optional: handle connection events
-    socketRef.current.on("connect", () => {
-      console.log("Socket connected:", socketRef.current?.id);
-    });
-
+    const s = io("http://localhost:8000");
+    setSocket(s);
     return () => {
-      // Cleanup on unmount
-      socketRef.current?.disconnect();
+      s.disconnect();
+      setSocket(null);
     };
   }, []);
 
-  // Emit function
-  const sendMsg = async(msg: Message) => {
-    socketRef.current?.emit("message", msg);
-    const result = await api.post(`/message/${msg.id}`,msg);
-    console.log(result.data);
-  };
+  const joining = useCallback(
+    (id: number) => {
+      socket?.emit("join", id);
+    },
+    [socket]
+  );
+
+  const sendMsg = useCallback(
+    async (msg: Message) => {
+      try {
+        socket?.emit("message", msg);
+        await api.post(`/message/${msg.id}`, msg);
+      } catch (error) {
+        console.error("Failed to send message:", error);
+      }
+    },
+    [socket]
+  );
+
+  const value = useMemo(
+    () => ({ socket, sendMsg, joining }),
+    [socket, sendMsg, joining]
+  );
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, sendMsg }}>
+    <SocketContext.Provider value={value}>
       {children}
     </SocketContext.Provider>
   );

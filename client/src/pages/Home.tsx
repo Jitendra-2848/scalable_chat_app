@@ -7,7 +7,6 @@ import { useChat } from '../hooks/useChat';
 const Home = () => {
   const [openAddPeople, setOpenAddPeople] = useState(false);
   const { selectUser } = useChat();
-
   return (
     <div className="flex relative">
       <People onAddClick={() => setOpenAddPeople(true)} />
