@@ -7,10 +7,8 @@ interface PeopleProps {
   onAddClick: () => void;
 }
 
-const People: React.FC<PeopleProps> = ({onAddClick}) => {
-  const { filteredUsers, selectUser,getAllUser,users, selectedUser, searchQuery, setSearchQuery } = useChat();
-  console.log(selectedUser);
-  console.log(users);
+const People: React.FC<PeopleProps> = ({ onAddClick }) => {
+  const { filteredUsers, selectUser, users, selectedUser, searchQuery, setSearchQuery } = useChat();
   return (
     <div className="sm:max-w-[25%] w-full h-screen flex flex-col overflow-hidden border-r border-gray-200">
       <div className="p-2 bg-orange-300 flex-none">
@@ -43,7 +41,7 @@ const People: React.FC<PeopleProps> = ({onAddClick}) => {
               key={idx}
               onClick={() => selectUser(user)}
               className={`hover:bg-gray-200 cursor-pointer duration-200 transition-all py-4 px-3 flex justify-between border-b border-gray-200 ${
-                selectedUser?.id === user.id ? 'bg-gray-300' : 'bg-gray-50'
+                selectedUser?.id === user.id ? 'bg-gray-200' : 'bg-gray-50'
               }`}
             >
               <div className="flex items-center min-w-0">
@@ -54,11 +52,11 @@ const People: React.FC<PeopleProps> = ({onAddClick}) => {
                 />
                 <div className="flex flex-col px-3 min-w-0">
                   <h1 className="font-semibold text-base truncate">{user.name}</h1>
-                  <h1 className="text-sm text-gray-500 truncate">{user.lastMessage}</h1>
+                  <h1 className="text-sm px-4 text-gray-500 truncate">{user.last_message}</h1>
                 </div>
               </div>
               <div className="flex-none">
-                <h1 className="text-[10px] font-medium text-gray-400">{user.lastSeen}</h1>
+                <h1 className="text-[10px] font-medium text-gray-500">{user.last_message_time?.split('T')[1].split(':').splice(0,2).join(":")}</h1>
               </div>
             </div>
           ))

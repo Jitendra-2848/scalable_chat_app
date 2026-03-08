@@ -36,6 +36,7 @@ export const UserInfoProvider = ({ children }: userInfoInterfaceProvider) => {
         try {
             const result = await api.get("/auth/get");
             setuserdetail(result.data.data)
+            // console.log(result.data.data)
             if (result.data?.data && result.status === 200) {
                 setAuth(true);
             }

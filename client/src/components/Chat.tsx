@@ -2,68 +2,22 @@ import { EllipsisVertical, Phone, Send, Video } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useChat } from '../hooks/useChat';
 
-interface chat_para {
-  id: string,
-  isonline: string,
-}
-
-interface Chat_interface {
-  message: string,
-  time?: Date,
-  read?: boolean,
-  sendedbyme: boolean,
-}
-
-// interface ChatProps {
-//   isonline?: boolean;
-//   id: string;
-//   detail: any;
-// }
 interface ChatProps {
-  User:{
-    id:number,
-    name:string,
-    email:string,
-  } | {};
+  User?: { id: number; name: string; email: string } | {};
 }
 
-const data = [
-  {
-    message: "hello",
-    sendedbyme: true
-  },
-  {
-    message: "hii",
-    sendedbyme: false
-  },
-  {
-    message: "kaisa chal raha hai ",
-    sendedbyme: false
-  },
-  {
-    message: "bas badiya tu bata",
-    sendedbyme: true
-  },
-  {
-    message: "<div className='bg-gray-200 h-full overflow-auto'w-full p-1 space-y-2 flex flex-col dagahgdhasj asdhasgdahghdaasashgdasha dadsdgashdasbssdasd khasadgjdhjgsa",
-    sendedbyme: false
-  },
-]
-
-
-
-const Chat: React.FC<ChatProps> = ({User}) => {
+const Chat: React.FC<ChatProps> = () => {
   const { selectedUser, messages, sendMessage } = useChat();
   const [msg, setMsg] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleMessageSend = () => {
     if (!msg.trim()) return;
-    console.log(msg)
     sendMessage(msg);
     setMsg('');
   };
@@ -73,8 +27,7 @@ const Chat: React.FC<ChatProps> = ({User}) => {
       <div className="w-full h-screen flex flex-col justify-center items-center bg-gray-50">
         <h1 className="font-extrabold text-2xl mb-4">Welcome to Chat kare!!</h1>
         <p className="w-[50%] text-justify [text-align-last:center] leading-relaxed text-gray-700">
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Beatae sequi porro quaerat
-          consectetur veritatis delectus modi dignissimos reiciendis molestias illo!
+          Select a user to start chatting
         </p>
       </div>
     );
@@ -88,7 +41,7 @@ const Chat: React.FC<ChatProps> = ({User}) => {
             <img
               src={selectedUser?.avatar}
               className="h-12 aspect-[1] rounded-full"
-              alt=""
+              alt={selectedUser.name}
             />
             <div className="flex flex-col px-3">
               <h1 className="font-semibold leading-tight text-2xl">{selectedUser.name}</h1>
@@ -109,36 +62,36 @@ const Chat: React.FC<ChatProps> = ({User}) => {
             </span>
           </div>
         </div>
+
         <div className="bg-gray-200 h-[90%] overflow-auto pt-2">
           <div className="w-full p-2 space-y-2 flex flex-col">
-            {messages.map((itm: Chat_interface, idx: number) => (
+            {messages.map((msg, idx) => (
               <div
                 ref={messagesEndRef}
                 key={idx}
-                className={`px-2 py-1 relative text-sm rounded-md shadow-sm border max-w-[70%] ${itm.sendedbyme
-                  ? 'self-end bg-[#5cc55c] rounded-br-none text-white border-green-600 pe-12'
-                  : 'self-start rounded-bl-none bg-white text-black border-gray-300 pe-12'
-                  }`}
+                className={`px-2 py-1 relative text-sm rounded-md shadow-sm border max-w-[70%] ${
+                  msg.sendedbyme
+                    ? 'self-end bg-[#5cc55c] rounded-br-none text-white border-green-600 pe-12'
+                    : 'self-start rounded-bl-none bg-white text-black border-gray-300 pe-12'
+                }`}
               >
-                {itm.message}
+                {msg.message}
                 <span
-                  className={`text-[9px] ${itm.sendedbyme
-                    ? 'text-gray-800 font-semibold absolute bottom-0 right-1'
-                    : 'text-gray-950 font-semibold absolute bottom-0 right-1'
-                    } self-end mt-1`}
+                  className="text-[9px] font-semibold absolute bottom-0 right-1"
                 >
-                  {itm.time instanceof Date
-                    ? itm.time.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true,
-                    })
+                  {msg.time instanceof Date
+                    ? msg.time.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true,
+                      })
                     : '9:30 pm'}
                 </span>
               </div>
             ))}
           </div>
         </div>
+
         <div className="flex p-1">
           <input
             ref={inputRef}

@@ -71,14 +71,13 @@ const getAllUser = async (req, res) => {
     try {
         const id = req.user.id;
         const result = await pool.query("select * from users where not id=$1", [id]);
-        console.log(result.rows);
+        // console.log(result.rows);
         return res.status(200).json({ message: "Logged in Successfully", data: result });
     } catch (error) {
         console.log(error.message);
         return res.status(500).json({ message: "Internal server error" });
     }
 }
-
 const logout = async (req,res) => {
     try {
         res.cookie("jwt", "", { maxAge: 0 })

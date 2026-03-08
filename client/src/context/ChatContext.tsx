@@ -6,127 +6,129 @@ import React, {
   useContext,
   useEffect,
 } from "react";
-import { ChatContextType, User, Message } from "../types/index";
+
+import { ChatContextType, User, Message, normalizeUser } from "../types/index";
 import { SocketContext } from "./socket";
 import { api } from "../utils/axios";
 
 export const ChatContext = createContext<ChatContextType | null>(null);
 
-export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [messagesMap, setMessagesMap] = useState<
-    Record<string, Message[]>
-  >({});
+  const [messagesMap, setMessagesMap] = useState<Record<number, Message[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUser] = useState<User[]>([]);
 
   const { sendMsg } = useContext(SocketContext)!;
 
-  // ✅ Fetch all users
+  // Normalize all users on initial load
   const getAllUser = useCallback(async () => {
     try {
       const result = await api.get("/user/");
-      setUser(result.data.data); 
-      // console.log()
-    } catch (error) {
-      console.log(error);
+      const normalizedUsers = (result.data.data || []).map((u: any) => normalizeUser(u));
+      setUser(normalizedUsers);
+    } catch (err) {
+      console.error("Error fetching users:", err);
     }
   }, []);
 
-  // Optional: auto load users on mount
-  useEffect(() => {
-    getAllUser();
-  }, [getAllUser]);
-  console.log(users)
+  // Single function handles all user sources - normalization prevents confusion
+  const selectUser = useCallback(
+    async (rawUser: any) => {
+      try {
+        const user = normalizeUser(rawUser);
 
-  // ✅ Select user
-  const selectUser = useCallback((user: User) => {
-    setSelectedUser(user);
+        if (messagesMap[user.id]) {
+          setSelectedUser(user);
+          addUserIfNotExists(user);
+          return;
+        }
 
-    // Ensure chat history exists
-    setMessagesMap((prev) => ({
-      ...prev,
-      [user.id]: prev[user.id] ?? [],
-    }));
+        // Backend finds/creates conversation if not found
+        const result = await api.post("/message/getmsg", {
+          conversation_id: user.conversation_id ?? null,
+          user_id: user.id,
+        });
+
+        setMessagesMap((prev) => ({
+          ...prev,
+          [user.id]: result.data.data || [],
+        }));
+
+        const userWithConv: User = {
+          ...user,
+          conversation_id: result.data.conversation_id || user.conversation_id,
+        };
+
+        setSelectedUser(userWithConv);
+        addUserIfNotExists(userWithConv);
+      } catch (err) {
+        console.error("Error selecting user:", err);
+      }
+    },
+    [messagesMap]
+  );
+
+  // Prevent duplicates by checking unified id
+  const addUserIfNotExists = useCallback((user: User) => {
+    setUser((prev) => {
+      const exists = prev.some((u) => u.id === user.id);
+      return exists ? prev : [...prev, user];
+    });
   }, []);
 
-  // ✅ Current messages
   const messages = useMemo(() => {
     if (!selectedUser) return [];
-    return messagesMap[selectedUser.id] ?? [];
+    return messagesMap[selectedUser.id] || [];
   }, [selectedUser, messagesMap]);
 
-  // ✅ Send message (clean & correct)
+  // Include all required Message fields
   const sendMessage = useCallback(
     (msg: string) => {
       if (!selectedUser || !msg.trim()) return;
-
-      const exists = users.some((u) => u.id === selectedUser.id);
-      if (!exists) {
-        setUser((prev) => [...prev, selectedUser]);
-      }
       const newMsg: Message = {
-        id:selectedUser.id,
+        id: selectedUser.id,
         message: msg,
         time: new Date(),
         read: false,
         sendedbyme: true,
-        exist:exists,
+        exist: true,
+        conversation_id: selectedUser.conversation_id,
       };
-      // Update local state
       setMessagesMap((prev) => ({
         ...prev,
-        [selectedUser.id]: [
-          ...(prev[selectedUser.id] ?? []),
-          newMsg,
-        ],
+        [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
       }));
 
-      // Send via socket
       sendMsg(newMsg);
     },
     [selectedUser, sendMsg]
   );
 
-  // ✅ Search users
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
-
     return users.filter((u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [users, searchQuery]);
 
-  // ✅ Context value
-  const value = useMemo(
-    () => ({
-      selectedUser,
-      selectUser,
-      messages,
-      sendMessage,
-      users,
-      searchQuery,
-      setSearchQuery,
-      filteredUsers,
-      getAllUser,
-    }),
-    [
-      selectedUser,
-      selectUser,
-      messages,
-      sendMessage,
-      users,
-      searchQuery,
-      filteredUsers,
-      getAllUser,
-    ]
-  );
+  const value = {
+    selectedUser,
+    selectUser,
+    messages,
+    sendMessage,
+    users,
+    searchQuery,
+    setSearchQuery,
+    filteredUsers,
+    getAllUser,
+  };
+
+  useEffect(() => {
+    getAllUser();
+  }, [getAllUser]);
 
   return (
-    <ChatContext.Provider value={value}>
-      {children}
-    </ChatContext.Provider>
+    <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
   );
 };

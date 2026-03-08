@@ -8,9 +8,9 @@ const verify = async (req, res,next) => {
             return res.status(401).json({ message: "Unauthorized person!!" })
         }
         const decoded_jwt = jwt.verify(Token, process.env.JWT_SECRET)
-        console.log(decoded_jwt.userId);
+        // console.log(decoded_jwt.userId);
         const user_data = await pool.query("select id,name,email from users where id=$1", [decoded_jwt.userId]);
-        console.log(user_data.rows[0]);
+        // console.log(user_data.rows[0]);
         req.user = user_data.rows[0]
         next();
     } catch (error) {
