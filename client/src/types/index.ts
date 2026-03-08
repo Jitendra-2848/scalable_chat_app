@@ -15,10 +15,11 @@ export interface User {
 export interface Message {
   id: number;
   message: string;
-  time: Date;
+  created_at: Date;
   read: boolean;
   sendedbyme: boolean;
   exist: boolean;
+  sender_id:number;
 }
 
 export interface ChatContextType {

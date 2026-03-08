@@ -11,7 +11,6 @@ const Chat: React.FC<ChatProps> = () => {
   const [msg, setMsg] = useState('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -69,22 +68,21 @@ const Chat: React.FC<ChatProps> = () => {
               <div
                 ref={messagesEndRef}
                 key={idx}
-                className={`px-2 py-1 relative text-sm rounded-md shadow-sm border max-w-[70%] ${
-                  msg.sendedbyme
+                className={`px-2 py-1 relative text-sm rounded-md shadow-sm border max-w-[70%] ${msg.sender_id !== selectedUser.id
                     ? 'self-end bg-[#5cc55c] rounded-br-none text-white border-green-600 pe-12'
                     : 'self-start rounded-bl-none bg-white text-black border-gray-300 pe-12'
-                }`}
+                  }`}
               >
                 {msg.message}
                 <span
                   className="text-[9px] font-semibold absolute bottom-0 right-1"
                 >
-                  {msg.time instanceof Date
-                    ? msg.time.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true,
-                      })
+                  {msg.created_at
+                    ? new Date(msg.created_at).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })
                     : '9:30 pm'}
                 </span>
               </div>

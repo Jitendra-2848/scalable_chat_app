@@ -89,7 +89,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newMsg: Message = {
         id: selectedUser.id,
         message: msg,
-        time: new Date(),
+        created_at: new Date(),
         read: false,
         sendedbyme: true,
         exist: true,
