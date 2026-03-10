@@ -1,4 +1,4 @@
-import { EllipsisVertical, Phone, Send, Video } from 'lucide-react';
+import { EllipsisVertical, Phone, Send, Video, Check, CheckCheck, Clock3 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useChat } from '../hooks/useChat';
 
@@ -7,7 +7,7 @@ interface ChatProps {
 }
 
 const Chat: React.FC<ChatProps> = () => {
-  const { selectedUser, messages, sendMessage, handleTyping,typingUsers,onlineUser } = useChat();
+  const { selectedUser, messages, sendMessage, handleTyping, typingUsers, onlineUser } = useChat();
   const [msg, setMsg] = useState('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -20,7 +20,6 @@ const Chat: React.FC<ChatProps> = () => {
     sendMessage(msg);
     setMsg('');
   };
-
 
   // console.log(typingUsers[selectedUser?.id])
 
@@ -35,7 +34,6 @@ const Chat: React.FC<ChatProps> = () => {
       </div>
     );
   }
-  console.log(typingUsers[selectedUser.id])
   return (
     <div className="w-full">
       <div className="w-full h-screen flex flex-col justify-center overflow-hidden">
@@ -49,7 +47,7 @@ const Chat: React.FC<ChatProps> = () => {
             <div className="flex flex-col px-3">
               <h1 className="font-semibold leading-tight text-2xl">{selectedUser.name}</h1>
               <h1 className="font-normal text-sm px-1">
-                {onlineUser.includes(selectedUser.id) ? (typingUsers[selectedUser.id] ? 'Typing...' : 'Online') : `last seen at ${selectedUser.last_message_time?.split('T')[1].split(':').splice(0,2).join(":")}`}
+                {onlineUser.includes(selectedUser.id) ? (typingUsers[selectedUser.id] ? 'Typing...' : 'Online') : `last seen at ${selectedUser.last_message_time?.split('T')[1].split(':').splice(0, 2).join(":")}`}
               </h1>
             </div>
           </div>
@@ -72,15 +70,14 @@ const Chat: React.FC<ChatProps> = () => {
               <div
                 ref={messagesEndRef}
                 key={idx}
-                className={`px-2 py-1 relative text-sm rounded-md shadow-sm border max-w-[70%] ${msg.sender_id !== selectedUser.id
-                  ? 'self-end bg-[#5cc55c] rounded-br-none text-white border-green-600 pe-12'
-                  : 'self-start rounded-bl-none bg-white text-black border-gray-300 pe-12'
+                className={`px-2 py-0.5 relative text-sm rounded-md shadow-sm border max-w-[70%] ${msg.sender_id !== selectedUser.id
+                  ? 'self-end bg-[#5cc55c] rounded-br-none text-white border-green-600 pe-14'
+                  : 'self-start rounded-bl-none bg-white text-black border-gray-300 pe-10'
                   }`}
               >
                 {msg.message}
                 <span
-                  className="text-[9px] font-semibold absolute bottom-0 right-1"
-                >
+                  className={`text-[7px] flex items-center font-semibold absolute ${msg.sender_id !== selectedUser.id ? "bottom-[-4px] right-[2px]" : "bottom-[-2px] right-1" }`}>
                   {msg.created_at
                     ? new Date(msg.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -88,7 +85,12 @@ const Chat: React.FC<ChatProps> = () => {
                       hour12: true,
                     })
                     : '9:30 pm'}
+                  <span className={msg.sender_id != selectedUser.id ? `inline-block ps-1` : "hidden"}>
+                    {msg.send_status == "sent1" && <CheckCheck size={12} /> || msg.send_status == "sending" && <Check size={11} /> || msg.send_status == "pending" && <Clock3 size={9}/>}
+                  </span>
+
                 </span>
+                {/* <span className="text-[9px] font-semibold absolute bottom-0 right-0"></span> */}
               </div>
             ))}
           </div>

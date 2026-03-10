@@ -17,7 +17,6 @@ const App: React.FC = () => {
     getuser()
     getAllUser();
     if(userdetail.id) joining(userdetail.id)
-    console.log(userdetail);
   },[auth])
 
   return (

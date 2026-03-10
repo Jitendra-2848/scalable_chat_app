@@ -33,7 +33,6 @@ export const MessageProvider = ({ children }: childrenInterface) => {
       setmsgload(false)
     })
   }
-  console.log(val);
   return (
     <div>
       <MessageContext.Provider value={{ val,getmsg,msgload,messages }}>

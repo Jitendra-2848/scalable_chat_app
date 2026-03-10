@@ -9,7 +9,6 @@ interface PeopleProps {
 
 const People: React.FC<PeopleProps> = ({ onAddClick }) => {
   const { filteredUsers, selectUser, users, selectedUser, searchQuery, setSearchQuery,typingUsers,onlineUser } = useChat();
-  console.log(onlineUser)
   return (
     <div className="sm:max-w-[25%] w-full h-screen flex flex-col overflow-hidden border-r border-gray-200">
       <div className="p-2 bg-orange-300 flex-none">
