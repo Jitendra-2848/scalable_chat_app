@@ -14,30 +14,33 @@ export interface User {
 }
 
 export interface Message {
-  id: number;
+  id: string;
   message: string;
-  created_at: Date;
+  created_at: Date | string;
   read: boolean;
+  sender_id: number;
+  receiver_id?: number;
   sendedbyme: boolean;
-  exist: boolean;
-  sender_id:number;
-  typing?:boolean;
-  isOnline?:boolean,
+  status: "pending" | "sent" | "delivered" | "read";
+  last_message?: string;
+  last_message_time?: Date | string;
+  conversation_id?: number;
 }
-
 export interface ChatContextType {
   selectedUser: User | null;
   selectUser: (user: any) => void;
   messages: Message[];
   sendMessage: (msg: string) => void;
   users: User[];
-  getAllUser: () => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   filteredUsers: User[];
+  getAllUser: () => void;
   addMessageFromSocket: (msg: Message) => void;
   handleTyping: () => void;
-  typingUsers: [];
+  typingUsers: Record<number, boolean>;
+  onlineUser: any[];
+  markAsRead: (messageId: string, senderId: number) => void;
 }
 
 // Converts user_id or id to unified id - single entry point for all user formats

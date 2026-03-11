@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import { ChatContextType, User, Message, normalizeUser } from "../types/index";
 import { api } from "../utils/axios";
@@ -23,7 +24,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const { userdetail } = useUser();
   const { sendMsg, socket } = useSocket();
   const [onlineUser, setOnlineUsers] = useState([]);
-  // Fetch all users 
+  const usersRef = useRef<User[]>([]);
+
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
   const getAllUser = useCallback(async () => {
     try {
       const result = await api.get("/user/");
@@ -36,7 +42,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  //  Add user if not in list 
   const addUserIfNotExists = useCallback((user: User) => {
     setUsers((prev) => {
       const exists = prev.some((u) => u.id === user.id);
@@ -44,34 +49,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
-  // Select a user and load messages 
   const selectUser = useCallback(
     async (rawUser: any) => {
       try {
         const user = normalizeUser(rawUser);
-
         if (messagesMap[user.id]) {
           setSelectedUser(user);
           addUserIfNotExists(user);
           return;
         }
-
         const result = await api.post("/message/getmsg", {
           conversation_id: user.conversation_id ?? null,
           user_id: user.id,
         });
-
         setMessagesMap((prev) => ({
           ...prev,
           [user.id]: result.data.data || [],
         }));
-
         const userWithConv: User = {
           ...user,
-          conversation_id:
-            result.data.conversation_id || user.conversation_id,
+          conversation_id: result.data.conversation_id || user.conversation_id,
         };
-
         setSelectedUser(userWithConv);
         addUserIfNotExists(userWithConv);
       } catch (err) {
@@ -81,55 +79,61 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     [messagesMap, addUserIfNotExists]
   );
 
-  //  Derived messages for selected user 
   const messages = useMemo(() => {
     if (!selectedUser) return [];
     return messagesMap[selectedUser.id] || [];
   }, [selectedUser, messagesMap]);
 
-  // Send a message 
   const sendMessage = useCallback(
     (msg: string) => {
       if (!selectedUser || !msg.trim() || !userdetail) return;
 
+      const tempId =
+        selectedUser.id +
+        "_" +
+        Date.now() +
+        "_" +
+        Math.random().toString(36).substr(2, 9);
+
       const newMsg: Message = {
-        id: selectedUser.id,
+        id: tempId,
         message: msg,
         created_at: new Date(),
         read: false,
         sender_id: userdetail.id,
+        receiver_id: selectedUser.id,
         sendedbyme: true,
-        exist: true,
+        status: "pending",
         last_message: msg,
         last_message_time: new Date(),
         conversation_id: selectedUser.conversation_id,
       };
 
-      // 1️⃣ Update messages map
       setMessagesMap((prev) => ({
         ...prev,
         [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
       }));
 
-      // 2️⃣ Update users array to reflect last message
       setUsers((prev) =>
         prev.map((u) =>
           u.id === selectedUser.id
-            ? { ...u, last_message: msg, last_message_time: new Date().toISOString() }
+            ? {
+                ...u,
+                last_message: msg,
+                last_message_time: new Date().toISOString(),
+              }
             : u
         )
       );
 
-      // 3️⃣ Send via socket
       sendMsg(newMsg);
     },
     [selectedUser, sendMsg, userdetail]
   );
-  // console.log(new Date().toISOString())
-  // console.log(selectedUser);
 
-  const addMessageFromSocket = useCallback(async (msg: Message) => {
-    if (!users.some(u => u.id === msg.sender_id)) {
+
+    const addMessageFromSocket = useCallback(async (msg: Message) => {
+    if (!usersRef.current.some(u => u.id === msg.sender_id)) {
       const result = await api.get("/user/");
       const normalizedUsers = (result.data.data || []).map((u: any) =>
         normalizeUser(u)
@@ -141,7 +145,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         conversation_id: msg.conversation_id ?? null,
         user_id: msg.sender_id,
       });
-
       setMessagesMap((prev) => ({
         ...prev,
         [msg.sender_id]: result.data.data || [],
@@ -155,8 +158,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       ))
   }, [messagesMap, users]);
 
+
+
+
+
+
+
+
+  const markAsRead = useCallback(
+    (messageId: string, senderId: number) => {
+      socket?.emit("message_read", {
+        message_id: messageId,
+        sender_id: senderId,
+      });
+    },
+    [socket]
+  );
+
   const handleTyping = useCallback(() => {
-    socket?.emit("typing", selectedUser?.id)
+    socket?.emit("typing", selectedUser?.id);
   }, [socket, selectedUser]);
 
   useEffect(() => {
@@ -165,35 +185,100 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     const handleMessage = (msg: Message) => {
       console.log("Received message from socket:", msg);
       addMessageFromSocket(msg);
+      socket.emit("message_delivered", {
+        message_id: msg.id,
+        sender_id: msg.sender_id,
+      });
     };
-    const handleSocketTyping = (userId: number) => {
-      setTypingUsers(prev => ({
-        ...prev,
-        [userId]: true
-      }))
 
+    const handleSocketTyping = (userId: number) => {
+      setTypingUsers((prev) => ({ ...prev, [userId]: true }));
       setTimeout(() => {
-        setTypingUsers(prev => ({
-          ...prev,
-          [userId]: false
-        }))
-      }, 2000)
-    }
+        setTypingUsers((prev) => ({ ...prev, [userId]: false }));
+      }, 2000);
+    };
+
     const handleOnlineUser = (x: any) => {
-      // console.log(x);
       setOnlineUsers(x);
-    }
+    };
+
+    const handleMessageSent = (data: {
+      temp_id: string;
+      receiver_id: number;
+      conversation_id: number;
+    }) => {
+      setMessagesMap((prev) => {
+        const userMessages = prev[data.receiver_id];
+        if (!userMessages) return prev;
+        return {
+          ...prev,
+          [data.receiver_id]: userMessages.map((m) =>
+            m.id === data.temp_id
+              ? {
+                  ...m,
+                  status: "sent" as const,
+                  conversation_id:
+                    data.conversation_id || m.conversation_id,
+                }
+              : m
+          ),
+        };
+      });
+    };
+
+    const handleMessageDelivered = (data: {
+      message_id: string;
+      receiver_id: number;
+    }) => {
+      setMessagesMap((prev) => {
+        const userMessages = prev[data.receiver_id];
+        if (!userMessages) return prev;
+        return {
+          ...prev,
+          [data.receiver_id]: userMessages.map((m) =>
+            m.id === data.message_id
+              ? { ...m, status: "delivered" as const }
+              : m
+          ),
+        };
+      });
+    };
+
+    const handleMessageRead = (data: {
+      message_id: string;
+      receiver_id: number;
+    }) => {
+      setMessagesMap((prev) => {
+        const userMessages = prev[data.receiver_id];
+        if (!userMessages) return prev;
+        return {
+          ...prev,
+          [data.receiver_id]: userMessages.map((m) =>
+            m.id === data.message_id
+              ? { ...m, status: "deleivered" as const }
+              : m
+          ),
+        };
+      });
+    };
+
     socket.on("onlineUsers", handleOnlineUser);
     socket.on("onMessage", handleMessage);
-    socket.on("Typing", handleSocketTyping)
+    socket.on("Typing", handleSocketTyping);
+    socket.on("message_sent", handleMessageSent);
+    socket.on("message_delivered", handleMessageDelivered);
+    socket.on("message_read", handleMessageRead);
+
     return () => {
       socket.off("onlineUsers", handleOnlineUser);
       socket.off("onMessage", handleMessage);
-      socket.off("Typing", handleSocketTyping)
+      socket.off("Typing", handleSocketTyping);
+      socket.off("message_sent", handleMessageSent);
+      socket.off("message_delivered", handleMessageDelivered);
+      socket.off("message_read", handleMessageRead);
     };
   }, [socket, addMessageFromSocket]);
 
-  // ─── Filtered users for search ───
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
     return users.filter((u) =>
@@ -219,7 +304,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       addMessageFromSocket,
       handleTyping,
       typingUsers,
-      onlineUser
+      onlineUser,
+      markAsRead,
     }),
     [
       selectedUser,
@@ -233,7 +319,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       addMessageFromSocket,
       handleTyping,
       typingUsers,
-      onlineUser
+      onlineUser,
+      markAsRead,
     ]
   );
 

@@ -47,8 +47,8 @@ export const sendmessage = async (req, res) => {
     }
 
     await pool.query(
-      "INSERT INTO messages (sender_id, message, seen, send_status, deleted, conversation_id) VALUES ($1, $2, $3, $4, $5, $6)",
-      [currentUserId, message, false, 'sent', false, convId]
+      "INSERT INTO messages (sender_id, message, seen, status, deleted, conversation_id) VALUES ($1, $2, $3, $4, $5, $6)",
+      [currentUserId, message, false, 'delivered', false, convId]
     );
 
     return res.status(200).json({ message: "Message sent", conversation_id: convId });
