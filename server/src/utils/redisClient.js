@@ -21,6 +21,11 @@ export const createRedis = async () => {
   return { pubClient, subClient };
 };
 
+export const getRedisClient = () => {
+  if (!pubClient) throw new Error("Redis client not initialized!");
+  return pubClient;
+};
+
 export const publish = async (data) => {
   if (!pubClient) throw new Error("Redis not initialized");
   await pubClient.publish("channel", JSON.stringify(data));
