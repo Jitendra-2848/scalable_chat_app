@@ -131,33 +131,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     [selectedUser, sendMsg, userdetail]
   );
 
+const addMessageFromSocket = useCallback((msg: Message) => {
+  // ✅ 1. Ensure user exists (NO API CALL)
+  if (!usersRef.current.some((u) => u.id === msg.sender_id)) {
+    setUsers((prev) => [
+      ...prev,
+      {
+        id: msg.sender_id,
+        name: "Unknown", // optional fallback
+        conversation_id: msg.conversation_id,
+        last_message: msg.last_message,
+        last_message_time: msg.last_message_time,
+      } as User,
+    ]);
+  }
 
-    const addMessageFromSocket = useCallback(async (msg: Message) => {
-    if (!usersRef.current.some(u => u.id === msg.sender_id)) {
-      const result = await api.get("/user/");
-      const normalizedUsers = (result.data.data || []).map((u: any) =>
-        normalizeUser(u)
-      );
-      setUsers(normalizedUsers);
-    }
-    if (!messagesMap[msg.sender_id]) {
-      const result = await api.post("/message/getmsg", {
-        conversation_id: msg.conversation_id ?? null,
-        user_id: msg.sender_id,
-      });
-      setMessagesMap((prev) => ({
-        ...prev,
-        [msg.sender_id]: result.data.data || [],
-      }));
-    }
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === msg.sender_id
-          ? { ...u, last_message: msg.last_message, last_message_time: msg.last_message_time }
-          : u
-      ))
-  }, [messagesMap, users]);
+  // ✅ 2. Add message instantly
+  setMessagesMap((prev) => {
+    const existing = prev[msg.sender_id] || [];
 
+    return {
+      ...prev,
+      [msg.sender_id]: [...existing, msg],
+    };
+  });
+
+  // ✅ 3. Update last message
+  setUsers((prev) =>
+    prev.map((u) =>
+      u.id === msg.sender_id
+        ? {
+            ...u,
+            last_message: msg.last_message,
+            last_message_time: msg.last_message_time,
+          }
+        : u
+    )
+  );
+}, []);
 
 
 
