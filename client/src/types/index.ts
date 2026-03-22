@@ -7,8 +7,8 @@ export interface User {
   email?: string;
   avatar?: string;
   isonline?: boolean;
-  lastMessage?: string;
-  lastSeen?: string;
+  last_message?: string;
+  last_message_time?:string;
   conversation_id?: number;
   typing?:boolean
 }
@@ -56,10 +56,9 @@ export const normalizeUser = (rawUser: any): User => {
     name: rawUser.name,
     email: rawUser.email,
     avatar: rawUser.avatar,
-    isOnline: rawUser.isonline,
+    isonline: rawUser.isonline,
     last_message: rawUser.lastMessage || rawUser.last_message,
     last_message_time: rawUser.last_message_time,
-    lastSeen: rawUser.lastSeen || rawUser.last_seen,
     conversation_id: rawUser.conversation_id,
   };
 };
@@ -87,15 +86,17 @@ export interface Register_data {
 export interface userInfoInterface {
     login: (data: any) => void,
     Register: (data: any) => void,
-    getuser: (data: any) => void,
+    getuser: () => void,
     userdetail: {
         name: string,
         email: string,
+        id: number,
     },
     auth: boolean;
     logout : () => void;
     userSearch : (search:any) => void;
-    
+    searchUserData:user_info[];
+    search:string;
 
 }
 

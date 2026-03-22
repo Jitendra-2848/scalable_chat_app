@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useEffect, useState } from "react"
-import { login_data, Register_data, userInfoInterface } from "../types";
+import { login_data, Register_data, userInfoInterface, user_info } from "../types";
 import { useNavigate } from "react-router-dom";
 import { api } from "../utils/axios";
 
@@ -11,7 +11,7 @@ interface userInfoInterfaceProvider {
 export const UserInfo = createContext<userInfoInterface | null>(null);
 export const UserInfoProvider = ({ children }: userInfoInterfaceProvider) => {
     const [userdetail, setuserdetail] = useState({ name: "", email: "", id: 0 })
-    const [searchUserData, setSearchUserData] = useState<string[] | []>([]);
+    const [searchUserData, setSearchUserData] = useState<user_info[]>([]);
     const [auth, setAuth] = useState(false);
     const [search, setSearch] = useState("");
     useEffect(() => {

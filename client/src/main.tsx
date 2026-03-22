@@ -13,7 +13,7 @@ createRoot(document.getElementById('root')!).render(
     <UserInfoProvider>
       <MessageProvider>
         <SocketProvider>
-          <ChatProvider>``
+          <ChatProvider>
             <App />
           </ChatProvider>
         </SocketProvider>

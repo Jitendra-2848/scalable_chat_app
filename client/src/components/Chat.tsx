@@ -6,9 +6,11 @@ import {
   Check,
   CheckCheck,
   Clock3,
+  ArrowLeft,
 } from "lucide-react";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useChat } from "../hooks/useChat";
+import { useNavigate } from "react-router-dom";
 
 interface ChatProps {
   User?: { id: number; name: string; email: string } | {};
@@ -23,7 +25,9 @@ const Chat: React.FC<ChatProps> = () => {
     typingUsers,
     onlineUser,
     markAsRead,
+    selectUser,
   } = useChat();
+  const navigate = useNavigate();
   const [msg, setMsg] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -37,9 +41,7 @@ const Chat: React.FC<ChatProps> = () => {
 
   useEffect(() => {
     readSetRef.current.clear();
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
+    if (observerRef.current) observerRef.current.disconnect();
   }, [selectedUser?.id]);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ const Chat: React.FC<ChatProps> = () => {
             const el = entry.target as HTMLElement;
             const messageId = el.dataset.messageId;
             const senderId = el.dataset.senderId;
+
             if (messageId && senderId && !readSetRef.current.has(messageId)) {
               readSetRef.current.add(messageId);
               markAsRead(messageId, parseInt(senderId));
@@ -63,9 +66,8 @@ const Chat: React.FC<ChatProps> = () => {
         threshold: 0.6,
       }
     );
-    return () => {
-      observerRef.current?.disconnect();
-    };
+
+    return () => observerRef.current?.disconnect();
   }, [markAsRead, selectedUser?.id]);
 
   const incomingRef = useCallback((node: HTMLDivElement | null) => {
@@ -84,117 +86,136 @@ const Chat: React.FC<ChatProps> = () => {
 
   if (!selectedUser) {
     return (
-      <div className="w-full h-screen flex flex-col justify-center items-center bg-gray-50">
-        <h1 className="font-extrabold text-2xl mb-4">
-          Welcome to Chat kare!!
+      <div className="w-full h-screen hidden sm:flex flex-col justify-center items-center bg-[#f8f5f1]">
+        <div className="w-20 h-20 rounded-full bg-[#e7ded4] flex items-center justify-center mb-5">
+          <span className="text-3xl">💬</span>
+        </div>
+        <h1 className="font-bold text-2xl text-[#2f2a26] mb-2">
+          Welcome to Chat Kare
         </h1>
-        <p className="w-[50%] text-justify [text-align-last:center] leading-relaxed text-gray-700">
-          Select a user to start chatting
+        <p className="w-[60%] text-center leading-relaxed text-[#7b6f66] text-sm">
+          Select a user from the left side and start your conversation.
         </p>
       </div>
     );
   }
-
+  console.log(selectedUser);
   return (
-    <div className="w-full">
-      <div className="w-full h-screen flex flex-col justify-center overflow-hidden">
-        <div className="bg-yellow-200 flex justify-between items-center p-1">
-          <div className="flex justify-center items-center">
+    <div className="w-full h-screen flex flex-col bg-[#f8f5f1]">
+      {/* Header */}
+      <div className="bg-[#efe7dd] border-b border-[#ddd2c5] flex justify-between items-center px-3 sm:px-4 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => {
+              navigate("/log");
+              selectUser(null);
+            }}
+          >
+            <ArrowLeft size={18} className="text-[#5e5148]" />
+          </button>
+          {selectedUser?.avatar ? (
             <img
-              src={selectedUser?.avatar}
-              className="h-12 aspect-[1] rounded-full"
+              src={selectedUser.avatar}
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover border border-[#d6c8b8] flex-none"
               alt={selectedUser.name}
             />
-            <div className="flex flex-col px-3">
-              <h1 className="font-semibold leading-tight text-2xl">
-                {selectedUser.name}
-              </h1>
-              <h1 className="font-normal text-sm px-1">
-                {onlineUser.includes(selectedUser.id)
-                  ? typingUsers[selectedUser.id]
-                    ? "Typing..."
-                    : "Online"
-                  : `last seen at ${selectedUser.last_message_time
-                    ?.split("T")[1]
-                    ?.split(":")
-                    .splice(0, 2)
-                    .join(":")}`}
-              </h1>
+          ) : (
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-[#b08968] text-white flex items-center justify-center font-semibold text-base sm:text-lg flex-none">
+              {selectedUser.name?.charAt(0).toUpperCase()}
             </div>
-          </div>
-          <div className="flex justify-center items-center space-x-3">
-            <span className="h-10 aspect-[1] justify-center flex items-center rounded-full hover:bg-slate-100 duration-100 transition-all">
-              <Phone />
-            </span>
-            <span className="h-10 aspect-[1] rounded-full hover:bg-slate-100 justify-center flex items-center duration-100 transition-all">
-              <Video />
-            </span>
-            <span className="h-10 aspect-[1] rounded-full hover:bg-slate-100 justify-center flex items-center duration-100 transition-all">
-              <EllipsisVertical />
-            </span>
+          )}
+
+          <div className="flex flex-col min-w-0">
+            <h1 className="font-semibold text-sm sm:text-lg text-[#2f2a26] truncate">
+              {selectedUser.name}
+            </h1>
+            <h1 className="font-normal text-xs sm:text-sm text-[#7b6f66] truncate">
+              {onlineUser.includes(selectedUser.id)
+                ? typingUsers[selectedUser.id]
+                  ? "Typing..."
+                  : "Online"
+                : `last seen at ${selectedUser.last_message_time
+                  ?.split("T")[1]
+                  ?.split(":")
+                  .splice(0, 2)
+                  .join(":")}`}
+            </h1>
           </div>
         </div>
 
-        <div
-          ref={chatContainerRef}
-          className="bg-gray-200 h-[90%] overflow-auto pt-2"
-        >
-          <div className="w-full p-2 space-y-2 flex flex-col">
-            {messages.map((m, idx) => {
-              const isMine = m.sender_id !== selectedUser.id;
-              const isIncoming = m.sender_id === selectedUser.id;
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          <button className="h-9 w-9 sm:h-10 sm:w-10 rounded-full hover:bg-[#e3d8cc] flex items-center justify-center transition-all">
+            <Phone size={17} className="text-[#5e5148]" />
+          </button>
+          <button className="h-9 w-9 sm:h-10 sm:w-10 rounded-full hover:bg-[#e3d8cc] flex items-center justify-center transition-all">
+            <Video size={17} className="text-[#5e5148]" />
+          </button>
+          <button className="h-9 w-9 sm:h-10 sm:w-10 rounded-full hover:bg-[#e3d8cc] flex items-center justify-center transition-all">
+            <EllipsisVertical size={17} className="text-[#5e5148]" />
+          </button>
+        </div>
+      </div>
 
-              return (
-                <div
-                  ref={isIncoming ? incomingRef : undefined}
-                  data-message-id={m.id}
-                  data-sender-id={m.sender_id}
-                  key={m.id || idx}
-                  className={`px-2 py-0.5 relative text-sm rounded-md shadow-sm border max-w-[70%] ${isMine
-                      ? "self-end bg-[#5cc55c] rounded-br-none text-white border-green-600 pe-14"
-                      : "self-start rounded-bl-none bg-white text-black border-gray-300 pe-10"
+      {/* Messages */}
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-auto px-3 sm:px-4 py-4 bg-[#f8f5f1]"
+      >
+        <div className="w-full space-y-3 flex flex-col">
+          {messages.map((m, idx) => {
+            const isMine = m.sender_id !== selectedUser.id;
+            const isIncoming = m.sender_id === selectedUser.id;
+
+            return (
+              <div
+                ref={isIncoming ? incomingRef : undefined}
+                data-message-id={m.id}
+                data-sender-id={m.sender_id}
+                key={m.id || idx}
+                className={`relative p-2 text-xs rounded-b-md max-w-[85%] sm:max-w-[72%] shadow-sm ${isMine
+                  ? "self-end bg-[#6b7a58] text-white rounded-tl-md pe-14"
+                  : "self-start bg-white text-[#2f2a26] border border-[#e5ddd3] rounded-tr-md pe-10"
+                  }`}
+              >
+                <p className="break-words px-[2px]">{m.message}</p>
+
+                <span
+                  className={`text-[7px] flex items-center font-medium absolute bottom-0 ${isMine
+                    ? "bottom-1 right-2 text-white/70"
+                    : "bottom-1 right-2 text-[#8b7f75]"
                     }`}
                 >
-                  {m.message}
-                  <span
-                    className={`text-[7px] flex items-center font-semibold absolute ${isMine
-                        ? "bottom-[-4px] right-[2px]"
-                        : "bottom-[-2px] right-1"
-                      }`}
-                  >
-                    {m.created_at
-                      ? new Date(m.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                      : "9:30 pm"}
-                    <span
-                      className={
-                        isMine ? `inline-block ps-1` : "hidden"
-                      }
-                    >
-                      {(m.status || m.status) === "pending" && <Clock3 size={9} />}
-                      {(m.status || m.status) === "sent" && <Check size={11} />}
-                      {(m.status || m.status) === "delivered" && <CheckCheck size={12} />}
-                      {/* {(m.status || m.status) === "read" && (
-                        <CheckCheck size={12} className="text-blue-500" />
-                      )} */}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
+                  {m.created_at
+                    ? new Date(m.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
+                    : "9:30 pm"}
 
-        <div className="flex p-1">
+                  {isMine && (
+                    <span className="inline-block ps-1">
+                      {m.status === "pending" && <Clock3 size={10} />}
+                      {m.status === "sent" && <Check size={11} />}
+                      {m.status === "delivered" && <CheckCheck size={12} />}
+                    </span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Input */}
+      <div className="bg-[#efe7dd] border-t border-[#ddd2c5] px-3 py-3">
+        <div className="flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
-            className="border-gray-100 focus:ring-2 rounded-lg bg-gray-100 flex-1 px-2 py-1 text-sm focus:outline-none focus:transition-all duration-300"
-            placeholder="message..."
+            className="flex-1 rounded-md bg-white px-4 py-3 text-sm text-[#2f2a26] placeholder:text-[#9a8f86] focus:outline-none focus:ring-2 focus:ring-[#c7b8a7] transition-all"
+            placeholder="Type a message..."
             value={msg}
             onChange={(e) => {
               setMsg(e.target.value);
@@ -204,7 +225,7 @@ const Chat: React.FC<ChatProps> = () => {
           />
           <button
             onClick={handleMessageSend}
-            className="bg-gray-300 justify-center items-center flex font-extrabold px-3 py-1.5 rounded-lg mx-1"
+            className="h-11 w-16 rounded-xl bg-[#b08968] hover:bg-[#9c7455] text-white flex items-center justify-center transition-all flex-none"
           >
             <Send size={20} />
           </button>

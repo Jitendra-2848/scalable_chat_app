@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Navbar from './components/Navbar';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -21,7 +21,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      <Navbar />
+      {/* <Navbar /> */}
       <Routes>
         <Route
           path="/"

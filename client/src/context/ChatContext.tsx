@@ -52,6 +52,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const selectUser = useCallback(
     async (rawUser: any) => {
       try {
+        if(rawUser == null){
+          setSelectedUser(null);
+          return ;
+        }
         const user = normalizeUser(rawUser);
         if (messagesMap[user.id]) {
           setSelectedUser(user);
@@ -163,7 +167,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
         ? {
             ...u,
             last_message: msg.last_message,
-            last_message_time: msg.last_message_time,
+            last_message_time: String(msg.last_message_time),
           }
         : u
     )
@@ -266,7 +270,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
           ...prev,
           [data.receiver_id]: userMessages.map((m) =>
             m.id === data.message_id
-              ? { ...m, status: "deleivered" as const }
+              ? { ...m, status: "delivered" as const }
               : m
           ),
         };
