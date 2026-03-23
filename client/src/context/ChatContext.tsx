@@ -136,7 +136,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
 const addMessageFromSocket = useCallback((msg: Message) => {
-  // ✅ 1. Ensure user exists (NO API CALL)
   if (!usersRef.current.some((u) => u.id === msg.sender_id)) {
     setUsers((prev) => [
       ...prev,
@@ -150,7 +149,6 @@ const addMessageFromSocket = useCallback((msg: Message) => {
     ]);
   }
 
-  // ✅ 2. Add message instantly
   setMessagesMap((prev) => {
     const existing = prev[msg.sender_id] || [];
 
@@ -160,7 +158,6 @@ const addMessageFromSocket = useCallback((msg: Message) => {
     };
   });
 
-  // ✅ 3. Update last message
   setUsers((prev) =>
     prev.map((u) =>
       u.id === msg.sender_id
@@ -194,11 +191,10 @@ const addMessageFromSocket = useCallback((msg: Message) => {
     socket?.emit("typing", selectedUser?.id);
   }, [socket, selectedUser]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!socket) return;
 
     const handleMessage = (msg: Message) => {
-      console.log("Received message from socket:", msg);
       addMessageFromSocket(msg);
       socket.emit("message_delivered", {
         message_id: msg.id,
@@ -232,8 +228,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
               ? {
                   ...m,
                   status: "sent" as const,
-                  conversation_id:
-                    data.conversation_id || m.conversation_id,
+                  conversation_id: data.conversation_id || m.conversation_id,
                 }
               : m
           ),
@@ -284,6 +279,9 @@ const addMessageFromSocket = useCallback((msg: Message) => {
     socket.on("message_delivered", handleMessageDelivered);
     socket.on("message_read", handleMessageRead);
 
+    // Listeners are now attached, safe to request
+    socket.emit("get_online_users");
+
     return () => {
       socket.off("onlineUsers", handleOnlineUser);
       socket.off("onMessage", handleMessage);
@@ -293,7 +291,6 @@ const addMessageFromSocket = useCallback((msg: Message) => {
       socket.off("message_read", handleMessageRead);
     };
   }, [socket, addMessageFromSocket]);
-
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
     return users.filter((u) =>

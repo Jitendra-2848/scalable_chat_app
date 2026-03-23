@@ -36,9 +36,7 @@ const broadcastOnlineUsers = async () => {
   io.emit("onlineUsers", onlineUsers.map(Number));
 };
 
-// Initialize everything
 const initSocket = async () => {
-  // 1. Connect Redis FIRST
   await createRedis();
   redis = await getRedisClient();
 
@@ -48,10 +46,8 @@ const initSocket = async () => {
 
   console.log("✅ Redis connected");
 
-  // 2. Clear stale online users from previous crash
   await redis.del("online_users");
 
-  // 3. Subscribe to Redis channel
   await subscribe((data) => {
     const receiverId = Number(data.receiver_id);
     const socketIds = userSocketMap.get(receiverId);
@@ -64,7 +60,6 @@ const initSocket = async () => {
 
   console.log("✅ Redis subscribed");
 
-  // 4. NOW set up socket handlers (Redis is guaranteed ready)
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
 
@@ -79,6 +74,10 @@ const initSocket = async () => {
       console.log(`User ${userId} joined`);
 
       await broadcastOnlineUsers();
+    });
+    socket.on("get_online_users", async () => {
+      const onlineUsers = await redis.sMembers("online_users");
+      socket.emit("onlineUsers", onlineUsers.map(Number));
     });
 
     socket.on("message", async (message) => {
@@ -147,7 +146,6 @@ const initSocket = async () => {
   console.log("✅ Socket handlers ready");
 };
 
-// Call it and catch errors
 initSocket().catch((err) => {
   console.error("❌ Failed to initialize:", err);
   process.exit(1);

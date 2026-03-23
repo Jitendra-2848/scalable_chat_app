@@ -134,11 +134,11 @@ const Chat: React.FC<ChatProps> = () => {
                 ? typingUsers[selectedUser.id]
                   ? "Typing..."
                   : "Online"
-                : `last seen at ${selectedUser.last_message_time
+                : selectedUser.last_message_time ? (`last seen at ${selectedUser.last_message_time
                   ?.split("T")[1]
                   ?.split(":")
                   .splice(0, 2)
-                  .join(":")}`}
+                  .join(":")}`) : "Chat with me to know my seen 😊"}
             </h1>
           </div>
         </div>
