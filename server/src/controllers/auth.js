@@ -33,7 +33,6 @@ const createUser = async (req, res) => {
             [name, email, hashpass]
         );
         const cookie = generateToken(new_user.rows[0].id, res);
-        console.log(cookie);
         return res.status(201).json({ message: "User created successfully", data: match.rows[0] });
     } catch (error) {
         console.log("Error: " + error.message);
@@ -42,7 +41,6 @@ const createUser = async (req, res) => {
 };
 const logUser = async (req, res) => {
     try {
-        console.log(req.body)
         const { email, pass } = req.body;
         if (!email || !pass) {
             return res.status(400).json({ message: "All fields are required!!" });
@@ -51,12 +49,10 @@ const logUser = async (req, res) => {
             "SELECT * FROM users WHERE email = $1",
             [email]
         );
-        console.log(match.rows[0])
         if (match.rows.length === 0) {
             return res.status(400).json({ message: "User not found!!" });
         }
         const match_pass = await bcrypt.compare(pass, match.rows[0].pass);
-        console.log(match_pass)
         if (!match_pass) {
             return res.status(401).json({ message: "Invalid credentials !!" });
         }

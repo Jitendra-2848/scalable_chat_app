@@ -2,13 +2,11 @@ import { Worker } from "bullmq";
 import pool from "../config/db.js";
 
 const message_Db = async (data) => {
-    console.log("koi toh hai : " + JSON.stringify(data));
     if(!message.trim()){
         return ;
     }
     const { sender_id, message, conversation_id: convId } = data;
 
-    console.log(sender_id, message, convId);
 
     if (!sender_id || !message || !convId) {
         console.error("Missing required fields!");
@@ -20,7 +18,6 @@ const message_Db = async (data) => {
         [sender_id, (message.trim()), false, 'delivered', false, convId]
     );
 
-    console.log("kar diya ab toh\n");
 }
 
 const worker = new Worker("message", async (job) => {

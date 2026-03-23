@@ -9,105 +9,148 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-// Map to track connected sockets
 const userSocketMap = new Map();
 
-// Redis client
 let redis;
 
-// Initialize Redis and subscribe to messages
-const startRedis = async () => {
+const addUserSocket = (userId, socketId) => {
+  if (!userSocketMap.has(userId)) {
+    userSocketMap.set(userId, new Set());
+  }
+  userSocketMap.get(userId).add(socketId);
+};
+
+const removeUserSocket = (userId, socketId) => {
+  const sockets = userSocketMap.get(userId);
+  if (!sockets) return true;
+  sockets.delete(socketId);
+  if (sockets.size === 0) {
+    userSocketMap.delete(userId);
+    return true;
+  }
+  return false;
+};
+
+const broadcastOnlineUsers = async () => {
+  const onlineUsers = await redis.sMembers("online_users");
+  io.emit("onlineUsers", onlineUsers.map(Number));
+};
+
+// Initialize everything
+const initSocket = async () => {
+  // 1. Connect Redis FIRST
   await createRedis();
   redis = await getRedisClient();
 
-  // Subscribe to Redis channel
+  if (!redis) {
+    throw new Error("Redis client failed to initialize!");
+  }
+
+  console.log("✅ Redis connected");
+
+  // 2. Clear stale online users from previous crash
+  await redis.del("online_users");
+
+  // 3. Subscribe to Redis channel
   await subscribe((data) => {
-    const receiverSocketId = userSocketMap.get(data.receiver_id);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("onMessage", data);
+    const receiverId = Number(data.receiver_id);
+    const socketIds = userSocketMap.get(receiverId);
+    if (socketIds) {
+      socketIds.forEach((sid) => {
+        io.to(sid).emit("onMessage", data);
+      });
     }
   });
+
+  console.log("✅ Redis subscribed");
+
+  // 4. NOW set up socket handlers (Redis is guaranteed ready)
+  io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
+
+    socket.on("join", async (rawUserId) => {
+      const userId = Number(rawUserId);
+      if (isNaN(userId)) return;
+
+      socket.userId = userId;
+      addUserSocket(userId, socket.id);
+
+      await redis.sAdd("online_users", String(userId));
+      console.log(`User ${userId} joined`);
+
+      await broadcastOnlineUsers();
+    });
+
+    socket.on("message", async (message) => {
+      if (socket.userId == null) return;
+
+      await publish({
+        ...message,
+        sender_id: socket.userId,
+      });
+
+      socket.emit("message_sent", {
+        temp_id: message.id,
+        receiver_id: message.receiver_id,
+        conversation_id: message.conversation_id,
+      });
+    });
+
+    socket.on("message_delivered", ({ message_id, sender_id }) => {
+      const senderSockets = userSocketMap.get(Number(sender_id));
+      if (senderSockets) {
+        senderSockets.forEach((sid) => {
+          io.to(sid).emit("message_delivered", {
+            message_id,
+            receiver_id: socket.userId,
+          });
+        });
+      }
+    });
+
+    socket.on("message_read", ({ message_id, sender_id }) => {
+      const senderSockets = userSocketMap.get(Number(sender_id));
+      if (senderSockets) {
+        senderSockets.forEach((sid) => {
+          io.to(sid).emit("message_read", {
+            message_id,
+            receiver_id: socket.userId,
+          });
+        });
+      }
+    });
+
+    socket.on("typing", (receiverId) => {
+      const receiverSockets = userSocketMap.get(Number(receiverId));
+      if (receiverSockets) {
+        receiverSockets.forEach((sid) => {
+          io.to(sid).emit("Typing", socket.userId);
+        });
+      }
+    });
+
+    socket.on("disconnect", async () => {
+      if (socket.userId == null) return;
+
+      const userId = socket.userId;
+      const fullyOffline = removeUserSocket(userId, socket.id);
+
+      if (fullyOffline) {
+        await redis.sRem("online_users", String(userId));
+        console.log(`User ${userId} offline`);
+      }
+
+      await broadcastOnlineUsers();
+    });
+  });
+
+  console.log("✅ Socket handlers ready");
 };
 
-startRedis();
-
-// Socket.IO connection
-io.on("connection", (socket) => {
-  // User joins
-  socket.on("join", async (userId) => {
-    socket.userId = userId;
-    userSocketMap.set(userId, socket.id);
-
-    // ✅ Store in Redis (convert number → string)
-    await redis.sAdd("online_users", String(userId));
-
-    // Send current online users to this socket
-    const onlineUsers = await redis.sMembers("online_users");
-    socket.emit("onlineUsers", onlineUsers.map(Number));
-
-    // Notify everyone else (same event your frontend expects)
-    io.emit("onlineUsers", onlineUsers.map(Number));
-  });
-
-  // Sending a message
-  socket.on("message", async (message) => {
-    if (!socket.userId) return;
-
-    // ✅ Publish message via Redis
-    await publish({
-      ...message,
-      sender_id: socket.userId,
-    });
-
-    // Emit confirmation to sender
-    socket.emit("message_sent", {
-      temp_id: message.id,
-      receiver_id: message.receiver_id,
-      conversation_id: message.conversation_id,
-    });
-  });
-
-  // Message delivered
-  socket.on("message_delivered", ({ message_id, sender_id }) => {
-    const senderSocketId = userSocketMap.get(sender_id);
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("message_delivered", {
-        message_id,
-        receiver_id: socket.userId,
-      });
-    }
-  });
-
-  // Message read
-  socket.on("message_read", ({ message_id, sender_id }) => {
-    const senderSocketId = userSocketMap.get(sender_id);
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("message_read", {
-        message_id,
-        receiver_id: socket.userId,
-      });
-    }
-  });
-
-  // Typing indicator
-  socket.on("typing", (receiverId) => {
-    const receiverSocketId = userSocketMap.get(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("Typing", socket.userId);
-    }
-  });
-
-  // User disconnects
-  socket.on("disconnect", async () => {
-    if (!socket.userId) return;
-
-    userSocketMap.delete(socket.userId);
-    await redis.sRem("online_users", String(socket.userId));
-
-    // Update all clients with current online users
-    const onlineUsers = await redis.sMembers("online_users");
-    io.emit("onlineUsers", onlineUsers.map(Number));
-  });
+// Call it and catch errors
+initSocket().catch((err) => {
+  console.error("❌ Failed to initialize:", err);
+  process.exit(1);
 });
 
 export { server, app, express };
