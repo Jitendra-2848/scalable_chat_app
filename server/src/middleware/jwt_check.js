@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 
-const verify = async (req, res,next) => {
+const Check_Jwt = async (req, res,next) => {
     try {
         const Token = req.cookies.jwt;
         if (!Token) {
@@ -20,5 +20,5 @@ const verify = async (req, res,next) => {
 }
 
 export {
-    verify
+    Check_Jwt
 };

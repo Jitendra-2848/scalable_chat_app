@@ -13,8 +13,11 @@ const App: React.FC = () => {
   const { joining } = useSocket();
   const {getAllUser} = useChat(); 
   useEffect(()=>{
-    getuser()
-    getAllUser();
+    async function initialdetails(){
+      await getuser()
+      await getAllUser();
+    }
+    initialdetails();
   },[auth])
 
   useEffect(() => {

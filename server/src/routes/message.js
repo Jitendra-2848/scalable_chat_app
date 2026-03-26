@@ -1,6 +1,6 @@
 import express from "express"
 import { createUser, deleteUser, getmessage, getUserById, getUsers, sendmessage, updateUser } from "../controllers/message.js";
-import { verify } from "../middleware/jwt_check.js";
+import { verify } from "../middleware/Access_Token_Check.js";
 import { getMyUser } from "../controllers/user.js";
 
 const MESSAGE_API = express.Router();

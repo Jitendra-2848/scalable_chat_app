@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt"
 import pool from "../config/db.js";
 import generateToken from "../lib/jwt.js";
-import { verify } from "../middleware/jwt_check.js";
+import { verify } from "../middleware/Access_Token_Check.js";
+import generateAccessToken from "../lib/AccessToken.js";
 const saltround = 10
 const getUser = async (req, res) => {
     try {
@@ -67,17 +68,30 @@ const getAllUser = async (req, res) => {
     try {
         const id = req.user.id;
         const result = await pool.query("select * from users where not id=$1", [id]);
-        // console.log(result.rows);
+        console.log(result.rows || "nothing");
         return res.status(200).json({ message: "Logged in Successfully", data: result });
     } catch (error) {
         console.log(error.message);
         return res.status(500).json({ message: "Internal server error" });
     }
 }
-const logout = async (req,res) => {
+const logout = async (req, res) => {
     try {
         res.cookie("jwt", "", { maxAge: 0 })
-        res.status(200).json({message:"Logout successfully!!"});
+        res.status(200).json({ message: "Logout successfully!!" });
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+const getToken = (req, res) => {
+    try {
+        let userId = req.user.id;
+        console.log(userId + "hello")
+        const AccessToken = generateAccessToken(userId);
+        console.log(req.user.id);
+        res.status(200).json({ message: "Token generated!!", token: AccessToken });
     } catch (error) {
         console.log(error.message);
         return res.status(500).json({ message: "Internal server error" });
@@ -89,5 +103,6 @@ export {
     createUser,
     logUser,
     getAllUser,
-    logout
+    logout,
+    getToken
 }
