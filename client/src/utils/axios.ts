@@ -21,9 +21,13 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 api.interceptors.response.use(
-    (response) => response,  // 
+    (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        if (originalRequest.url?.includes("/auth/refresh_token")) {
+            return Promise.reject(error);
+        }
+
         if (
             error.response?.status === 401 &&
             !originalRequest._retry
@@ -37,7 +41,6 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 clearAccessToken();
-                window.location.href = "/log";
                 return Promise.reject(refreshError);
             }
         }

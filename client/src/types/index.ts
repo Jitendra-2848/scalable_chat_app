@@ -86,12 +86,12 @@ export interface Register_data {
 export interface userInfoInterface {
     login: (data: any) => void,
     Register: (data: any) => void,
-    getuser: () => void,
+    getuser: () => Promise<boolean>,
     userdetail: {
         name: string,
         email: string,
         id: number,
-    },
+    } | null,
     auth: boolean;
     logout : () => void;
     userSearch : (search:any) => void;

@@ -2,48 +2,58 @@ import { createContext, ReactNode, useEffect, useState } from "react"
 import { login_data, Register_data, userInfoInterface, user_info } from "../types";
 import { useNavigate } from "react-router-dom";
 import { api } from "../utils/axios";
+import { hasRefreshToken } from "../hooks/TokenManagement";
 
 
 interface userInfoInterfaceProvider {
     children: ReactNode;
 }
 
+interface searchUserDataFormat {
+    name: string,
+    email: string,
+    id: number
+}
+
 export const UserInfo = createContext<userInfoInterface | null>(null);
 export const UserInfoProvider = ({ children }: userInfoInterfaceProvider) => {
-    const [userdetail, setuserdetail] = useState({ name: "", email: "", id: 0 })
+    const [userdetail, setuserdetail] = useState<searchUserDataFormat | null>({ name: "", email: "", id: 0 })
     const [searchUserData, setSearchUserData] = useState<user_info[]>([]);
     const [auth, setAuth] = useState(false);
     const [search, setSearch] = useState("");
     useEffect(() => {
-        const timer = setTimeout(async() => {
+        const timer = setTimeout(async () => {
             if (search.trim()) {
                 userSearch(search);
                 console.log(search);
-                const result = await api.post("/user/getUser", {search});
+                const result = await api.post("/user/getUser", { search });
                 console.log(result.data);
                 setSearchUserData(result.data.data)
             }
-            else{
-                setSearchUserData([]);  
-                return; 
+            else {
+                setSearchUserData([]);
+                return;
             }
         }, 500); // 1 second delay
 
         return () => clearTimeout(timer); // clear previous timer
     }, [search]);
     const navigate = useNavigate()
-    const getuser = async () => {
+    const getuser = async (): Promise<boolean> => {
         try {
             const result = await api.get("/auth/get");
-            setuserdetail(result.data.data)
-            // console.log(result.data.data)
+            setuserdetail(result.data.data);
             if (result.data?.data && result.status === 200) {
                 setAuth(true);
+                return true;  // ✅ Logged in
             }
+            return false;
         } catch (error) {
-            console.log(error);
+            setAuth(false);
+            setuserdetail(null);
+            return false;
         }
-    }
+    };
     const login = async (data: login_data) => {
         const { email, pass } = data;
         const newUser = { email, pass };
@@ -87,7 +97,7 @@ export const UserInfoProvider = ({ children }: userInfoInterfaceProvider) => {
         }
     }
     return (
-        <UserInfo.Provider value={{ login, userdetail, auth, Register, getuser, logout, userSearch, searchUserData,search }}>
+        <UserInfo.Provider value={{ login, userdetail, auth, Register, getuser, logout, userSearch, searchUserData, search }}>
             {children}
         </UserInfo.Provider>
     )

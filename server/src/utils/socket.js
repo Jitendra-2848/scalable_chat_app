@@ -65,7 +65,7 @@ const initSocket = async () => {
 
   io.use((socket, next) => {
     const cookieHeader = socket.handshake.headers.cookie; // string of cookies
-    const cookies = cookieHeader.split(";").map(c => c.trim());
+    const cookies = cookieHeader?.split(";").map(c => c.trim());
     try {
       const jwtCookie = cookies.find(c => c.startsWith("jwt=")).split("=")[1];
       const decoded = jwt.verify(jwtCookie, process.env.JWT_SECRET);

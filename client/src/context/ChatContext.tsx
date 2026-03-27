@@ -10,6 +10,7 @@ import { ChatContextType, User, Message, normalizeUser } from "../types/index";
 import { api } from "../utils/axios";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
+import { hasRefreshToken } from "../hooks/TokenManagement";
 
 export const ChatContext = createContext<ChatContextType | null>(null);
 
@@ -32,11 +33,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getAllUser = useCallback(async () => {
     try {
+      if(hasRefreshToken()){
       const result = await api.get("/user/");
       const normalizedUsers = (result.data.data || []).map((u: any) =>
         normalizeUser(u)
       );
       setUsers(normalizedUsers);
+    }
     } catch (err) {
       console.error("Error fetching users:", err);
     }

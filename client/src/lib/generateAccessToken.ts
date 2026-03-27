@@ -1,12 +1,13 @@
-import { api } from "../utils/axios";
+import axios from "axios"; 
 
-export const Token = async() => {
+export const Token = async (): Promise<string> => {
     try {
-        const data = await api.get("/auth/refresh_token");
-        console.log(data)
-        return data.data.token;
+        const { data } = await axios.get(
+            "http://localhost:8000/auth/refresh_token",
+            { withCredentials: true }
+        );
+        return data.token;
     } catch (error) {
-        console.log(error);
-        throw new Error("something went wrong... please re-login....");
+        throw new Error("Session expired... please re-login.");
     }
-}
+};

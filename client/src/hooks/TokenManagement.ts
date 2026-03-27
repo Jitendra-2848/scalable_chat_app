@@ -12,3 +12,7 @@ export const setAccessToken = (token:string) => {
 export const clearAccessToken = () => {
   AccessToken = null;
 };
+
+export const hasRefreshToken = ()=>{
+    return Boolean(AccessToken);
+}

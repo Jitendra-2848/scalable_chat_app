@@ -9,39 +9,41 @@ import { useChat } from './hooks/useChat';
 import { useSocket } from './hooks/useSocket';
 
 const App: React.FC = () => {
-  const { userdetail,auth,getuser } = useUser();
+  const { userdetail, auth, getuser } = useUser();
   const { joining } = useSocket();
-  const {getAllUser} = useChat(); 
-  useEffect(()=>{
-    async function initialdetails(){
-      await getuser()
-      await getAllUser();
-    }
-    initialdetails();
-  },[auth])
-
+  const { getAllUser } = useChat();
   useEffect(() => {
+    async function initialdetails() {
+      const loggedIn = await getuser(); 
+      if (loggedIn){
+    await getAllUser();
+  }
+}
+initialdetails();
+  }, [auth]);
+
+useEffect(() => {
   if (userdetail?.id) {
     joining(userdetail.id);
   }
 }, [userdetail?.id, joining]);
 
-  return (
-    <>
-      {/* <Navbar /> */}
-      <Routes>
-        <Route
-          path="/"
-          element={auth ? <Home /> : <Navigate to="/log" replace />}
-        />
-        <Route path="/reg" element={!auth ? <Register /> : <Home />} />
-        <Route
-          path="/log"
-          element={!auth ? <Login /> : <Navigate to="/" replace />}
-        />
-      </Routes>
-    </>
-  );
+return (
+  <>
+    {/* <Navbar /> */}
+    <Routes>
+      <Route
+        path="/"
+        element={auth ? <Home /> : <Navigate to="/log" replace />}
+      />
+      <Route path="/reg" element={!auth ? <Register /> : <Home />} />
+      <Route
+        path="/log"
+        element={!auth ? <Login /> : <Navigate to="/" replace />}
+      />
+    </Routes>
+  </>
+);
 };
 
 export default App;
