@@ -9,6 +9,7 @@ import React, {
 import { io, Socket } from "socket.io-client";
 import { Message } from "../types";
 import { api } from "../utils/axios";
+import { useUser } from "../hooks/useUser";
 
 interface SocketContextInterface {
   socket: Socket | null;
@@ -22,7 +23,7 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-
+    const {auth} = useUser();
   useEffect(() => {
     const s = io("http://localhost:8000",{
       withCredentials:true,
@@ -33,7 +34,7 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({
       s.disconnect();
       setSocket(null);
     };
-  }, []);
+  }, [auth]);
   
  const joining = useCallback(
   (id: number) => {

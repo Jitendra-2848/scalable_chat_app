@@ -11,7 +11,7 @@ import { api } from "../utils/axios";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { hasRefreshToken } from "../hooks/TokenManagement";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 export const ChatContext = createContext<ChatContextType | null>(null);
 
@@ -26,7 +26,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const { userdetail } = useUser();
   const { sendMsg, socket } = useSocket();
   const [onlineUser, setOnlineUsers] = useState([]);
+  
   const usersRef = useRef<User[]>([]);
+  
+  const fetchedChats = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     usersRef.current = users;
@@ -34,13 +37,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getAllUser = useCallback(async () => {
     try {
-      if(hasRefreshToken()){
-      const result = await api.get("/user/");
-      const normalizedUsers = (result.data.data || []).map((u: any) =>
-        normalizeUser(u)
-      );
-      setUsers(normalizedUsers);
-    }
+      if (hasRefreshToken()) {
+        const result = await api.get("/user/");
+        const normalizedUsers = (result.data.data || []).map((u: any) =>
+          normalizeUser(u)
+        );
+        setUsers(normalizedUsers);
+      }
     } catch (err) {
       console.error("Error fetching users:", err);
     }
@@ -56,24 +59,51 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const selectUser = useCallback(
     async (rawUser: any) => {
       try {
-        if(rawUser == null){
+        if (rawUser == null) {
           setSelectedUser(null);
-          return ;
-        }
-        const user = normalizeUser(rawUser);
-        if (messagesMap[user.id]) {
-          setSelectedUser(user);
-          addUserIfNotExists(user);
           return;
         }
+        
+        const user = normalizeUser(rawUser);
+
+        setSelectedUser(user);
+        addUserIfNotExists(user);
+
+        if (fetchedChats.current.has(user.id)) {
+          return;
+        }
+
+        // Fetch full history
         const result = await api.post("/message/getmsg", {
           conversation_id: user.conversation_id ?? null,
           user_id: user.id,
         });
-        setMessagesMap((prev) => ({
-          ...prev,
-          [user.id]: result.data.data || [],
-        }));
+
+        const dbMessages = result.data.data || [];
+
+        setMessagesMap((prev) => {
+          const liveMessages = prev[user.id] || [];
+          
+          // Merge DB messages and Live Socket messages (prevents duplicates by ID)
+          const msgMap = new Map();
+          dbMessages.forEach((m: Message) => msgMap.set(m.id, m));
+          liveMessages.forEach((m: Message) => msgMap.set(m.id, m));
+
+          // Sort them by creation time
+          const merged = Array.from(msgMap.values()).sort(
+            (a: any, b: any) =>
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+
+          return {
+            ...prev,
+            [user.id]: merged,
+          };
+        });
+
+        // Mark this user's history as successfully fetched!
+        fetchedChats.current.add(user.id);
+
         const userWithConv: User = {
           ...user,
           conversation_id: result.data.conversation_id || user.conversation_id,
@@ -84,7 +114,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Error selecting user:", err);
       }
     },
-    [messagesMap, addUserIfNotExists]
+    [addUserIfNotExists] 
   );
 
   const messages = useMemo(() => {
@@ -133,47 +163,40 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     [selectedUser, sendMsg, userdetail]
   );
 
-const addMessageFromSocket = useCallback((msg: Message) => {
-  if (!usersRef.current.some((u) => u.id === msg.sender_id)) {
-    setUsers((prev) => [
-      ...prev,
-      {
-        id: msg.sender_id,
-        name: "Unknown", // optional fallback
-        conversation_id: msg.conversation_id,
-        last_message: msg.last_message,
-        last_message_time: msg.last_message_time,
-      } as User,
-    ]);
-  }
+  const addMessageFromSocket = useCallback((msg: Message) => {
+    if (!usersRef.current.some((u) => u.id === msg.sender_id)) {
+      setUsers((prev) => [
+        ...prev,
+        {
+          id: msg.sender_id,
+          name: "Unknown", // optional fallback
+          conversation_id: msg.conversation_id,
+          last_message: msg.last_message,
+          last_message_time: msg.last_message_time,
+        } as User,
+      ]);
+    }
 
-  setMessagesMap((prev) => {
-    const existing = prev[msg.sender_id] || [];
+    setMessagesMap((prev) => {
+      const existing = prev[msg.sender_id] || [];
+      return {
+        ...prev,
+        [msg.sender_id]: [...existing, msg],
+      };
+    });
 
-    return {
-      ...prev,
-      [msg.sender_id]: [...existing, msg],
-    };
-  });
-
-  setUsers((prev) =>
-    prev.map((u) =>
-      u.id === msg.sender_id
-        ? {
-            ...u,
-            last_message: msg.last_message,
-            last_message_time: String(msg.last_message_time),
-          }
-        : u
-    )
-  );
-}, []);
-
-
-
-
-
-
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === msg.sender_id
+          ? {
+              ...u,
+              last_message: msg.last_message,
+              last_message_time: String(msg.last_message_time),
+            }
+          : u
+      )
+    );
+  }, []);
 
   const markAsRead = useCallback(
     (messageId: string, senderId: number) => {
@@ -189,7 +212,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
     socket?.emit("typing", selectedUser?.id);
   }, [socket, selectedUser]);
 
- useEffect(() => {
+  useEffect(() => {
     if (!socket) return;
 
     const handleMessage = (msg: Message) => {
@@ -244,9 +267,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
         return {
           ...prev,
           [data.receiver_id]: userMessages.map((m) =>
-            m.id === data.message_id
-              ? { ...m, status: "delivered" as const }
-              : m
+            m.id === data.message_id ? { ...m, status: "delivered" as const } : m
           ),
         };
       });
@@ -262,9 +283,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
         return {
           ...prev,
           [data.receiver_id]: userMessages.map((m) =>
-            m.id === data.message_id
-              ? { ...m, status: "delivered" as const }
-              : m
+            m.id === data.message_id ? { ...m, status: "delivered" as const } : m
           ),
         };
       });
@@ -277,7 +296,6 @@ const addMessageFromSocket = useCallback((msg: Message) => {
     socket.on("message_delivered", handleMessageDelivered);
     socket.on("message_read", handleMessageRead);
 
-    // Listeners are now attached, safe to request
     socket.emit("get_online_users");
 
     return () => {
@@ -289,6 +307,7 @@ const addMessageFromSocket = useCallback((msg: Message) => {
       socket.off("message_read", handleMessageRead);
     };
   }, [socket, addMessageFromSocket]);
+
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
     return users.filter((u) =>
