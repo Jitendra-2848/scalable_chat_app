@@ -4,36 +4,25 @@ import React, {
   useMemo,
   useCallback,
   useEffect,
-  useRef,
 } from "react";
-import { ChatContextType, User, Message, normalizeUser } from "../types/index";
+import { ChatContextType, User, normalizeUser } from "../types/index";
 import { api } from "../utils/axios";
-import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { hasRefreshToken } from "../hooks/TokenManagement";
-import { v4 as uuidv4 } from "uuid";
 
-export const ChatContext = createContext<ChatContextType | null>(null);
+export const ChatContext = createContext<ChatContextType | null>(null); // ✅ Typed
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [messagesMap, setMessagesMap] = useState<Record<number, Message[]>>({});
-  const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [typingUsers, setTypingUsers] = useState<Record<number, boolean>>({});
-  const { userdetail } = useUser();
-  const { sendMsg, socket } = useSocket();
-  const [onlineUser, setOnlineUsers] = useState([]);
-  
-  const usersRef = useRef<User[]>([]);
-  
-  const fetchedChats = useRef<Set<number>>(new Set());
+  const [onlineUser, setOnlineUsers] = useState<number[]>([]);
 
-  useEffect(() => {
-    usersRef.current = users;
-  }, [users]);
+  const { socket } = useSocket();
+
 
   const getAllUser = useCallback(async () => {
     try {
@@ -49,265 +38,84 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const addUserIfNotExists = useCallback((user: User) => {
+  const selectUser = useCallback((rawUser: any) => {
+    if (!rawUser) {
+      setSelectedUser(null);
+      return;
+    }
+    const user = normalizeUser(rawUser);
+    setSelectedUser(user);
+
+    // Add to sidebar if not exists
     setUsers((prev) => {
       const exists = prev.some((u) => u.id === user.id);
       return exists ? prev : [...prev, user];
     });
   }, []);
 
-  const selectUser = useCallback(
-    async (rawUser: any) => {
-      try {
-        if (rawUser == null) {
-          setSelectedUser(null);
-          return;
-        }
-        
-        const user = normalizeUser(rawUser);
-
-        setSelectedUser(user);
-        addUserIfNotExists(user);
-
-        if (fetchedChats.current.has(user.id)) {
-          return;
-        }
-
-        // Fetch full history
-        const result = await api.post("/message/getmsg", {
-          conversation_id: user.conversation_id ?? null,
-          user_id: user.id,
-        });
-
-        const dbMessages = result.data.data || [];
-
-        setMessagesMap((prev) => {
-          const liveMessages = prev[user.id] || [];
-          
-          // Merge DB messages and Live Socket messages (prevents duplicates by ID)
-          const msgMap = new Map();
-          dbMessages.forEach((m: Message) => msgMap.set(m.id, m));
-          liveMessages.forEach((m: Message) => msgMap.set(m.id, m));
-
-          // Sort them by creation time
-          const merged = Array.from(msgMap.values()).sort(
-            (a: any, b: any) =>
-              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-
-          return {
-            ...prev,
-            [user.id]: merged,
-          };
-        });
-
-        // Mark this user's history as successfully fetched!
-        fetchedChats.current.add(user.id);
-
-        const userWithConv: User = {
-          ...user,
-          conversation_id: result.data.conversation_id || user.conversation_id,
-        };
-        setSelectedUser(userWithConv);
-        addUserIfNotExists(userWithConv);
-      } catch (err) {
-        console.error("Error selecting user:", err);
-      }
-    },
-    [addUserIfNotExists] 
-  );
-
-  const messages = useMemo(() => {
-    if (!selectedUser) return [];
-    return messagesMap[selectedUser.id] || [];
-  }, [selectedUser, messagesMap]);
-
-  const sendMessage = useCallback(
-    (msg: string) => {
-      if (!selectedUser || !msg.trim() || !userdetail) return;
-
-      const tempId = uuidv4();
-      const newMsg: Message = {
-        id: tempId,
-        message: msg,
-        created_at: new Date(),
-        read: false,
-        sender_id: userdetail.id,
-        receiver_id: selectedUser.id,
-        sendedbyme: true,
-        status: "pending",
-        last_message: msg,
-        last_message_time: new Date(),
-        conversation_id: selectedUser.conversation_id,
-      };
-
-      setMessagesMap((prev) => ({
-        ...prev,
-        [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
-      }));
-
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === selectedUser.id
-            ? {
-                ...u,
-                last_message: msg,
-                last_message_time: new Date().toISOString(),
-              }
-            : u
-        )
-      );
-
-      sendMsg(newMsg);
-    },
-    [selectedUser, sendMsg, userdetail]
-  );
-
-  const addMessageFromSocket = useCallback((msg: Message) => {
-    if (!usersRef.current.some((u) => u.id === msg.sender_id)) {
-      setUsers((prev) => [
-        ...prev,
-        {
-          id: msg.sender_id,
-          name: "Unknown", // optional fallback
-          conversation_id: msg.conversation_id,
-          last_message: msg.last_message,
-          last_message_time: msg.last_message_time,
-        } as User,
-      ]);
-    }
-
-    setMessagesMap((prev) => {
-      const existing = prev[msg.sender_id] || [];
-      return {
-        ...prev,
-        [msg.sender_id]: [...existing, msg],
-      };
+  const updateSelectedUserConvId = useCallback((convId: number) => {
+    setSelectedUser((prev) => {
+      if (!prev) return prev;
+      return { ...prev, conversation_id: convId };
     });
-
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === msg.sender_id
-          ? {
-              ...u,
-              last_message: msg.last_message,
-              last_message_time: String(msg.last_message_time),
-            }
-          : u
-      )
-    );
   }, []);
 
-  const markAsRead = useCallback(
-    (messageId: string, senderId: number) => {
-      socket?.emit("message_read", {
-        message_id: messageId,
-        sender_id: senderId,
+  // 3. Update sidebar preview when a new message arrives
+  const updateSidebarWithNewMessage = useCallback(
+    (userId: number, lastMessage: string, lastMessageTime: string) => {
+      setUsers((prev) => {
+        if (!prev.some((u) => u.id === userId)) {
+          return [
+            ...prev,
+            {
+              id: userId,
+              name: "Unknown",
+              last_message: lastMessage,
+              last_message_time: lastMessageTime,
+            } as User,
+          ];
+        }
+        return prev.map((u) =>
+          u.id === userId
+            ? { ...u, last_message: lastMessage, last_message_time: lastMessageTime }
+            : u
+        );
       });
     },
-    [socket]
+    []
   );
 
+  // 4. Typing
   const handleTyping = useCallback(() => {
-    socket?.emit("typing", selectedUser?.id);
+    if (selectedUser?.id) socket?.emit("typing", selectedUser.id);
   }, [socket, selectedUser]);
 
+  // 5. Socket listeners (Online + Typing ONLY)
   useEffect(() => {
     if (!socket) return;
 
-    const handleMessage = (msg: Message) => {
-      addMessageFromSocket(msg);
-      socket.emit("message_delivered", {
-        message_id: msg.id,
-        sender_id: msg.sender_id,
-      });
-    };
-
     const handleSocketTyping = (userId: number) => {
       setTypingUsers((prev) => ({ ...prev, [userId]: true }));
-      setTimeout(() => {
-        setTypingUsers((prev) => ({ ...prev, [userId]: false }));
-      }, 2000);
+      setTimeout(
+        () => setTypingUsers((prev) => ({ ...prev, [userId]: false })),
+        2000
+      );
     };
 
-    const handleOnlineUser = (x: any) => {
-      setOnlineUsers(x);
-    };
-
-    const handleMessageSent = (data: {
-      temp_id: string;
-      receiver_id: number;
-      conversation_id: number;
-    }) => {
-      setMessagesMap((prev) => {
-        const userMessages = prev[data.receiver_id];
-        if (!userMessages) return prev;
-        return {
-          ...prev,
-          [data.receiver_id]: userMessages.map((m) =>
-            m.id === data.temp_id
-              ? {
-                  ...m,
-                  status: "sent" as const,
-                  conversation_id: data.conversation_id || m.conversation_id,
-                }
-              : m
-          ),
-        };
-      });
-    };
-
-    const handleMessageDelivered = (data: {
-      message_id: string;
-      receiver_id: number;
-    }) => {
-      setMessagesMap((prev) => {
-        const userMessages = prev[data.receiver_id];
-        if (!userMessages) return prev;
-        return {
-          ...prev,
-          [data.receiver_id]: userMessages.map((m) =>
-            m.id === data.message_id ? { ...m, status: "delivered" as const } : m
-          ),
-        };
-      });
-    };
-
-    const handleMessageRead = (data: {
-      message_id: string;
-      receiver_id: number;
-    }) => {
-      setMessagesMap((prev) => {
-        const userMessages = prev[data.receiver_id];
-        if (!userMessages) return prev;
-        return {
-          ...prev,
-          [data.receiver_id]: userMessages.map((m) =>
-            m.id === data.message_id ? { ...m, status: "delivered" as const } : m
-          ),
-        };
-      });
-    };
+    const handleOnlineUser = (onlineArray: number[]) =>
+      setOnlineUsers(onlineArray);
 
     socket.on("onlineUsers", handleOnlineUser);
-    socket.on("onMessage", handleMessage);
     socket.on("Typing", handleSocketTyping);
-    socket.on("message_sent", handleMessageSent);
-    socket.on("message_delivered", handleMessageDelivered);
-    socket.on("message_read", handleMessageRead);
-
     socket.emit("get_online_users");
 
     return () => {
       socket.off("onlineUsers", handleOnlineUser);
-      socket.off("onMessage", handleMessage);
       socket.off("Typing", handleSocketTyping);
-      socket.off("message_sent", handleMessageSent);
-      socket.off("message_delivered", handleMessageDelivered);
-      socket.off("message_read", handleMessageRead);
     };
-  }, [socket, addMessageFromSocket]);
+  }, [socket]);
 
+  // 6. Search
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
     return users.filter((u) =>
@@ -323,37 +131,31 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     () => ({
       selectedUser,
       selectUser,
-      messages,
-      sendMessage,
+      updateSelectedUserConvId, // ✅ NEW
       users,
       searchQuery,
       setSearchQuery,
       filteredUsers,
       getAllUser,
-      addMessageFromSocket,
+      updateSidebarWithNewMessage,
       handleTyping,
       typingUsers,
       onlineUser,
-      markAsRead,
     }),
     [
       selectedUser,
       selectUser,
-      messages,
-      sendMessage,
+      updateSelectedUserConvId,
       users,
       searchQuery,
       filteredUsers,
       getAllUser,
-      addMessageFromSocket,
+      updateSidebarWithNewMessage,
       handleTyping,
       typingUsers,
       onlineUser,
-      markAsRead,
     ]
   );
 
-  return (
-    <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
-  );
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };

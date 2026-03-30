@@ -1,4 +1,5 @@
 
+import { tryCatch } from "bullmq";
 import pool from "../config/db.js";
 import { message_saving } from "../data/queue.js";
 import {
@@ -70,6 +71,7 @@ export const getmessage = async (req, res) => {
   try {
     const { conversation_id, user_id } = req.body;
     const currentUserId = req.user.id;
+    const limit = 10;
 
     let convId = conversation_id;
 
@@ -100,18 +102,21 @@ export const getmessage = async (req, res) => {
     }
 
     if (!convId) {
-      return res.status(200).json({ message: "No conversation", data: [] });
+      return res.status(200).json({ message: "No conversation", data: [], hasMore: false });
     }
 
     const result = await pool.query(
-      "SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at desc limit 50",
-      [convId]
+      "SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT $2",
+      [convId, limit]
     );
+
+    const chronologicalMessages = result.rows.reverse();
 
     return res.status(200).json({
       message: "Messages fetched",
-      data: result.rows,
-      conversation_id: convId
+      data: chronologicalMessages,
+      conversation_id: convId,
+      hasMore: result.rows.length === limit,
     });
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -190,7 +195,39 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+export const oldMessages = async (req, res) => {
+  try {
+    const { conversation_id, cursor } = req.body;
+    const limit = 5;
+    console.log(cursor);
+    if (!conversation_id || !cursor) {
+      return res.status(400).json({ message: "Missing conversation_id or cursor" });
+    }
 
+    // Fetch 50 messages that were sent BEFORE the cursor timestamp
+    const result = await pool.query(
+      `SELECT * FROM messages 
+       WHERE conversation_id = $1 AND created_at < $2::timestamptz
+       ORDER BY created_at DESC 
+       LIMIT $3`,
+      [conversation_id, cursor, limit]
+    );
+
+    // Reverse them so they display chronologically (top-to-bottom) in the UI
+    const chronologicalMessages = result.rows.reverse();
+    console.log(result.rows.length);
+    return res.status(200).json({
+      message: "Successfully Loaded messages",
+      data: chronologicalMessages,
+      hasMore: result.rows.length > 0, // If we got 50, there are probably more
+    });
+  } catch (error) {
+    console.error("Error in oldMessages:", error.message);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
 
 
 

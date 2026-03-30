@@ -28,19 +28,17 @@ export interface Message {
 }
 export interface ChatContextType {
   selectedUser: User | null;
-  selectUser: (user: any) => void;
-  messages: Message[];
-  sendMessage: (msg: string) => void;
+  selectUser: (rawUser: any) => void;
+  updateSelectedUserConvId: (convId: number) => void; // NEW
   users: User[];
   searchQuery: string;
-  setSearchQuery: (q: string) => void;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   filteredUsers: User[];
-  getAllUser: () => void;
-  addMessageFromSocket: (msg: Message) => void;
+  getAllUser: () => Promise<void>;
+  updateSidebarWithNewMessage: (userId: number, lastMessage: string, lastMessageTime: string) => void;
   handleTyping: () => void;
   typingUsers: Record<number, boolean>;
-  onlineUser: any[];
-  markAsRead: (messageId: string, senderId: number) => void;
+  onlineUser: number[];
 }
 
 // Converts user_id or id to unified id - single entry point for all user formats
@@ -98,6 +96,15 @@ export interface userInfoInterface {
     searchUserData:user_info[];
     search:string;
 
+}
+
+export interface MessageContextType {
+  messages: Message[];
+  sendMessage: (msg: string) => void;
+  fetchOlderMessages: () => Promise<void>;
+  hasMore: boolean;
+  markAsRead: (messageId: string, senderId: number) => void;
+  hasMoreChats:boolean,
 }
 
 export interface user_info{
