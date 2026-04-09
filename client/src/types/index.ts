@@ -21,10 +21,13 @@ export interface Message {
   sender_id: number;
   receiver_id?: number;
   sendedbyme: boolean;
-  status: "pending" | "sent" | "delivered" | "read";
+ status: "pending" | "sent" | "delivered" | "read" | "failed";
   last_message?: string;
   last_message_time?: Date | string;
   conversation_id?: number;
+    file_url?: string;       // Add
+  file_type?: string;      // Add
+  file_name?: string; 
 }
 export interface ChatContextType {
   selectedUser: User | null;

@@ -8,27 +8,44 @@ const connection = {
 };
 
 const message_Db = async (data) => {
-  const { sender_id, message, conversation_id, id} = data;
+  const { 
+    sender_id, 
+    message, 
+    conversation_id, 
+    id, 
+    file_url, 
+    file_type, 
+    file_name 
+  } = data;
 
-  if (!message || !message.trim()) {
-    console.error("Empty message, skipping");
+  if ((!message || !message.trim()) && !file_url) {
+    console.error("Empty message and no file, skipping");
     return;
   }
 
-  if (!sender_id || !conversation_id) {
-    console.error("Missing sender_id or conversation_id:", data);
+  if (!sender_id || !conversation_id || !id) {
+    console.error("Missing required fields:", data);
     return;
   }
-
-  if(!id){
-    console.error("Id is missing in message");
-    return;
-  }
-
-  await pool.query(
-    "INSERT INTO messages (id,sender_id, message, seen, status, deleted, conversation_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-    [id,sender_id, message.trim(), false, "delivered", false, conversation_id]
+  console.log("start");
+  const x = await pool.query(
+    `INSERT INTO messages 
+     (id, sender_id, message, seen, status, deleted, conversation_id, file_url, file_type, file_name) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [
+      id,
+      sender_id,
+      message?.trim() || null,
+      false,
+      "delivered",
+      false,
+      conversation_id,
+      file_url || null,
+      file_type || null,
+      file_name || null
+    ]
   );
+  console.log(x + "hello");
 };
 
 const worker = new Worker(
@@ -36,7 +53,8 @@ const worker = new Worker(
   async (job) => {
     await message_Db(job.data);
   },
-  { connection }
+  {concurrency: 20 ,
+    connection }
 );
 
 worker.on("completed", (job) => {

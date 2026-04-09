@@ -78,72 +78,171 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [selectedUser?.id]);
 
 
-  const fetchOlderMessages = useCallback(async () => {
-    if (!selectedUser) return;
-    console.log("pointed");
-    const currentMessages = messagesMapRef.current[selectedUser.id] || [];
-    console.log("pointed3");
-    // if (currentMessages.length === 0) return;
-    console.log("pointed2");
+const fetchOlderMessages = useCallback(async () => {
+  if (!selectedUser) return;
 
-    const oldestMessage = currentMessages[0];
-    const cursor = oldestMessage.created_at;
+  const currentMessages = messagesMapRef.current[selectedUser.id] || [];
+  
+  let cursor = null;
+  console.log("messages:", messages.length);
+console.log("hasMore:", hasMore);
+console.log("hasMoreChats:", hasMoreChats);
+console.log("fetched:", fetchedChats.current.has(selectedUser?.id));
+  if (currentMessages.length > 0) {
+    const oldestMessage = currentMessages[0]; // ensure sorted correctly
+    if (!oldestMessage?.created_at) return;
+    cursor = oldestMessage.created_at;
+  }
 
-    try {
-      const result = await api.post("/message/oldMessages", {
-        conversation_id: selectedUser.conversation_id,
-        user_id: selectedUser.id,
-        cursor: cursor,
-      });
+  try {
+    const result = await api.post("/message/oldMessages", {
+      conversation_id: selectedUser.conversation_id,
+      user_id: selectedUser.id,
+      cursor,
+    });
 
-      const olderMessages: Message[] = result.data.data || [];
-      console.log(olderMessages);
-      setHasMoreChats((prev) => ({
-        ...prev,
-        [selectedUser.id]: result.data.hasMore,
-      }));
+    const olderMessages: Message[] = result.data.data || [];
 
-      if (olderMessages.length > 0) {
-        setMessagesMap((prev) => ({
-          ...prev,
-          [selectedUser.id]: [
-            ...olderMessages,
-            ...(prev[selectedUser.id] || []),
-          ],
-        }));
-      }
+    setHasMoreChats((prev) => ({
+      ...prev,
+      [selectedUser.id]: result.data.hasMore,
+    }));
 
-    } catch (error) {
-      console.error("Failed to fetch older messages", error);
-    }
-  }, [selectedUser]); 
-  const sendMessage = useCallback(
-    (msg: string) => {
-      if (!selectedUser || !msg.trim() || !userdetail) return;
-
-      const tempId = uuidv4();
-      const newMsg: Message = {
-        id: tempId,
-        message: msg,
-        created_at: new Date(),
-        sender_id: userdetail.id,
-        receiver_id: selectedUser.id,
-        status: "pending",
-        conversation_id: selectedUser.conversation_id,
-      };
+    if (olderMessages.length > 0) {
       setMessagesMap((prev) => ({
         ...prev,
-        [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
+        [selectedUser.id]: [
+          ...olderMessages,
+          ...(prev[selectedUser.id] || []),
+        ],
       }));
-      updateSidebarWithNewMessage(
-        selectedUser.id,
-        msg,
-        new Date().toISOString()
-      );
-      sendMsg(newMsg);
-    },
-    [selectedUser, sendMsg, userdetail, updateSidebarWithNewMessage]
-  );
+    }
+  } catch (error) {
+    console.error("Failed to fetch older messages", error);
+  }
+}, [selectedUser, userdetail]);
+const sendMessage = useCallback(
+  async (msg: string | FormData) => {
+    if (!selectedUser || !userdetail) return;
+    
+    const isFormData = msg instanceof FormData;
+    if (!isFormData && (!msg || !msg.trim())) return;
+
+    const tempId = uuidv4();
+    
+    try {
+      if (isFormData) {
+        const file = msg.get('file') as File;
+        if (!file) return;
+
+        // Convert file to base64
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Create optimistic UI message
+        const fileMsg: Message = {
+          id: tempId,
+          message: '',
+          created_at: new Date(),
+          sender_id: userdetail.id,
+          receiver_id: selectedUser.id,
+          status: "pending",
+          conversation_id: selectedUser.conversation_id,
+          file_url: base64, // Show preview immediately
+          file_type: file.type,
+          file_name: file.name,
+        };
+
+        // Add to UI immediately
+        setMessagesMap((prev) => ({
+          ...prev,
+          [selectedUser.id]: [...(prev[selectedUser.id] || []), fileMsg],
+        }));
+
+        updateSidebarWithNewMessage(
+          selectedUser.id,
+          `📎 ${file.name}`,
+          new Date().toISOString()
+        );
+
+        // Send to backend
+        const response = await api.post("/message/send", {
+          id: tempId,
+          receiver_id: selectedUser.id,
+          conversation_id: selectedUser.conversation_id,
+          message: '',
+          file: base64,
+          file_type: file.type,
+          file_name: file.name,
+        });
+
+        // Update with actual Cloudinary URL
+        setMessagesMap((prev) => ({
+          ...prev,
+          [selectedUser.id]: prev[selectedUser.id].map((m) =>
+            m.id === tempId
+              ? {
+                  ...m,
+                  file_url: response.data.file_url,
+                  status: "sent",
+                  conversation_id: response.data.conversation_id,
+                }
+              : m
+          ),
+        }));
+
+        if (response.data.conversation_id) {
+          updateSelectedUserConvId(response.data.conversation_id);
+        }
+
+      } else {
+        // Regular text message
+        const newMsg: Message = {
+          id: tempId,
+          message: msg,
+          created_at: new Date(),
+          sender_id: userdetail.id,
+          receiver_id: selectedUser.id,
+          status: "pending",
+          conversation_id: selectedUser.conversation_id,
+        };
+
+        setMessagesMap((prev) => ({
+          ...prev,
+          [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg],
+        }));
+
+        updateSidebarWithNewMessage(
+          selectedUser.id,
+          msg,
+          new Date().toISOString()
+        );
+
+        sendMsg(newMsg);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      
+      // Mark message as failed
+      setMessagesMap((prev) => ({
+        ...prev,
+        [selectedUser.id]: prev[selectedUser.id].map((m) =>
+          m.id === tempId ? { ...m, status: "failed" } : m
+        ),
+      }));
+    }
+  },
+  [selectedUser, sendMsg, userdetail, updateSidebarWithNewMessage, updateSelectedUserConvId]
+);
+
+
+
+
+
   const markAsRead = useCallback(
     (messageId: string, senderId: number) => {
       socket?.emit("message_read", {
@@ -236,7 +335,7 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const hasMore = useMemo(() => {
     if (!selectedUser) return false;
-    return hasMoreChats[selectedUser.id] || false;
+    return hasMoreChats[selectedUser.id] ?? true;
   }, [selectedUser, hasMoreChats]);
   const value = useMemo(
     () => ({

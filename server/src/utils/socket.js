@@ -95,17 +95,19 @@ const initSocket = async () => {
       socket.emit("onlineUsers", onlineUsers.map(Number));
     });
 
-    socket.on("message", async (message) => {
-      if (socket.userId == null) return;
+socket.on("message", async (message) => {
+  if (socket.userId == null) return;
 
-      
-
-      socket.emit("message_sent", {
-        temp_id: message.id,
-        receiver_id: message.receiver_id,
-        conversation_id: message.conversation_id,
-      });
-    });
+  // Emit with file metadata if present
+  socket.emit("message_sent", {
+    temp_id: message.id,
+    receiver_id: message.receiver_id,
+    conversation_id: message.conversation_id,
+    file_url: message.file_url || null,
+    file_type: message.file_type || null,
+    file_name: message.file_name || null,
+  });
+});
 
     socket.on("message_delivered", ({ message_id, sender_id }) => {
       const senderSockets = userSocketMap.get(Number(sender_id));
