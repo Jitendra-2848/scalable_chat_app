@@ -1,9 +1,9 @@
 import { Queue } from "bullmq";
 
 const connection = {
-  host: "127.0.0.1",
-  port: 6379,
-  password: "Jitendra123",
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+  password: process.env.REDIS_PASSWORD,
 };
 
 const message_Queue = new Queue("message", { connection });

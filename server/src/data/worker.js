@@ -2,9 +2,9 @@ import { Worker } from "bullmq";
 import pool from "../config/db.js";
 
 const connection = {
-  host: "127.0.0.1",
-  port: 6379,
-  password: "Jitendra123",
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+  password: process.env.REDIS_PASSWORD,
 };
 
 const message_Db = async (data) => {
