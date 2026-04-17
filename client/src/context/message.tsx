@@ -188,6 +188,8 @@ const fetchOlderMessages = useCallback(async () => {
             file_url: base64, // Show preview immediately
             file_type: file.type,
             file_name: file.name,
+            read: false,
+            sendedbyme: true,
           };
 
           // Add to UI immediately
@@ -241,6 +243,8 @@ const fetchOlderMessages = useCallback(async () => {
             receiver_id: selectedUser.id,
             status: "pending",
             conversation_id: selectedUser.conversation_id,
+            read: false,
+            sendedbyme: true,
           };
 
           setMessagesMap((prev) => ({
@@ -320,7 +324,7 @@ const fetchOlderMessages = useCallback(async () => {
             m.id === msgId
               ? {
                   ...m,
-                  status,
+                  status: status as Message['status'],
                   ...(convId ? { conversation_id: convId } : {}),
                 }
               : m,
@@ -384,6 +388,7 @@ const fetchOlderMessages = useCallback(async () => {
       fetchOlderMessages,
       hasMore,
       markAsRead,
+      hasMoreChats: hasMore,
     }),
     [messages, sendMessage, fetchOlderMessages, hasMore, markAsRead],
   );

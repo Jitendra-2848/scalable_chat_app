@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import People from '../components/People';
 import Chat from '../components/Chat';
 import AddPeople from '../components/AddPeople';
 import { useChat } from '../hooks/useChat';
-import Navbar from '../components/Navbar';
 
 const Home = () => {
   const [openAddPeople, setOpenAddPeople] = useState(false);

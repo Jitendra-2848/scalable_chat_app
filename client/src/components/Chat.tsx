@@ -36,15 +36,12 @@ const Chat: React.FC = () => {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const readSetRef = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
-  const previousScrollHeight = useRef(0);
   const shouldScrollToBottom = useRef(true);
   const [preview, setPreview] = useState<{
     file: File;
     url: string;
     type: "image" | "video" | "file";
   } | null>(null);
-
-  let x = 0;
 
   // Scroll to bottom helper
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -461,7 +458,7 @@ const Chat: React.FC = () => {
                             loading="lazy"
                           />
                           <span className="text-[10px] flex items-center gap-1 font-medium absolute bottom-1.5 right-1.5 bg-black/50 text-white px-1.5 py-0.5 rounded-full">
-                            {formatTime(m.created_at)}
+                            {formatTime(m.created_at as string)}
                             {isMine && (
                               <>
                                 {m.status === "pending" && <Clock3 size={12} />}
@@ -487,7 +484,7 @@ const Chat: React.FC = () => {
                             className="w-full h-auto max-h-[240px] sm:max-h-[320px] rounded-md"
                           />
                           <span className="text-[10px] flex items-center gap-1 font-medium absolute bottom-1.5 right-1.5 bg-black/50 text-white px-1.5 py-0.5 rounded-full">
-                            {formatTime(m.created_at)}
+                            {formatTime(m.created_at as string)}
                             {isMine && (
                               <>
                                 {m.status === "pending" && <Clock3 size={12} />}
@@ -545,7 +542,7 @@ const Chat: React.FC = () => {
                         isMine ? "right-2" : "right-2"
                       }`}
                     >
-                      {formatTime(m.created_at)}
+                      {formatTime(m.created_at as string)}
                       {isMine && (
                         <>
                           {m.status === "pending" && <Clock3 size={12} />}
