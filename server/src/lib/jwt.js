@@ -8,11 +8,11 @@ const generateToken = (userId, res) => {
   );
   if(res){
   res.cookie("jwt", token, {
-    httpOnly: true,
-    secure: false,
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  httpOnly: true,
+  secure: true,        // MUST be true on production
+  sameSite: "none",    // IMPORTANT for cross-site (frontend/backend)
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 }
   return token;
 };
