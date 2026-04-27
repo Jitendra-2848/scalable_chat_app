@@ -64,48 +64,58 @@ const initSocket = async () => {
 
   console.log("✅ Redis subscribed");
 
-  io.use((socket, next) => {
+io.use((socket, next) => {
   try {
-    let userId;
+    let decoded;
 
-    const authToken = socket.handshake.auth?.token;
-    const cookieHeader = socket.handshake.headers.cookie;
+    // Method 1: Check auth.token (primary for WebSocket)
+    const accessToken = socket.handshake.auth?.token;
 
-    // ✅ PRIORITY 1: Access token (for stress test / mobile / APIs)
-    if (authToken) {
+    if (accessToken) {
       try {
-        const decoded = jwt.verify(
-          authToken,
-          process.env.ACCESS_TOKEN_SECRET
-        );
-        userId = decoded.id || decoded.userId;
-      } catch {}
-    }
-
-    // ✅ PRIORITY 2: Cookie JWT (for browser)
-    if (!userId && cookieHeader) {
-      const cookies = cookieHeader.split(";").map((c) => c.trim());
-      const jwtCookie = cookies.find((c) => c.startsWith("jwt="));
-
-      if (jwtCookie) {
-        try {
-          const decoded = jwt.verify(
-            jwtCookie.split("=")[1],
-            process.env.JWT_SECRET
-          );
-          userId = decoded.userId || decoded.id;
-        } catch {}
+        decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
+        socket.userId = decoded.id || decoded.userId;
+        console.log(`✅ Auth success via auth.token for user ${socket.userId}`);
+        return next();
+      } catch (err) {
+        console.error('❌ auth.token failed:', err.name);
       }
     }
 
-    if (!userId) {
-      return next(new Error("Invalid JWT"));
+    // Method 2: Check query.token (fallback for WebSocket)
+    const queryToken = socket.handshake.query?.token;
+
+    if (queryToken) {
+      try {
+        decoded = jwt.verify(queryToken, process.env.ACCESS_TOKEN_SECRET);
+        socket.userId = decoded.id || decoded.userId;
+        console.log(`✅ Auth success via query.token for user ${socket.userId}`);
+        return next();
+      } catch (err) {
+        console.error('❌ query.token failed:', err.name);
+      }
     }
 
-    socket.userId = Number(userId);
-    next();
+    // Method 3: Check cookie JWT (fallback for HTTP clients)
+    const cookie = socket.handshake.headers?.cookie;
+
+    if (cookie?.includes("jwt=")) {
+      const token = cookie.split("jwt=")[1].split(";")[0];
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.userId = decoded.userId;
+        console.log(`✅ Auth success via cookie for user ${socket.userId}`);
+        return next();
+      } catch (err) {
+        console.error('❌ cookie failed:', err.name);
+      }
+    }
+
+    console.error('❌ No valid auth provided (auth.token, query.token, and cookie all missing/invalid)');
+    return next(new Error("No valid auth"));
   } catch (err) {
-    next(new Error("Socket auth failed"));
+    console.error("JWT ERROR:", err.message);
+    return next(new Error("Invalid JWT"));
   }
 });
   io.on("connection", (socket) => {
